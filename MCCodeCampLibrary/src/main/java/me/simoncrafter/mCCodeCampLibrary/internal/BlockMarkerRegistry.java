@@ -25,26 +25,9 @@ public class BlockMarkerRegistry {
 
     private final Plugin plugin;
     private final Map<Location, MarkerEntry> cache = new HashMap<>();
-    private final Map<String, Consumer<String>> loadHandlers = new HashMap<>();
-    private final Map<String, Consumer<String>> unloadHandlers = new HashMap<>();
 
     public BlockMarkerRegistry(Plugin plugin) {
         this.plugin = plugin;
-    }
-
-    /** Notified with the marker's id whenever a marker of this type loads in with its chunk. */
-    public void registerLoadHandler(String type, Consumer<String> handler) {
-        loadHandlers.put(type, handler);
-    }
-
-    /** Notified with the marker's id whenever a marker of this type unloads with its chunk. */
-    public void registerUnloadHandler(String type, Consumer<String> handler) {
-        unloadHandlers.put(type, handler);
-    }
-
-    public void unregisterHandlers(String type) {
-        loadHandlers.remove(type);
-        unloadHandlers.remove(type);
     }
 
     /** Tag a block as course-relevant (used during course authoring). */
@@ -99,21 +82,14 @@ public class BlockMarkerRegistry {
 
             Location location = new Location(chunk.getWorld(), x, y, z);
             cache.put(location, new MarkerEntry(type, id));
-
-            Consumer<String> handler = loadHandlers.get(type);
-            if (handler != null) handler.accept(id);
         }
     }
 
     /** Call from a ChunkUnloadEvent listener, to bound memory use. */
     public void onChunkUnload(Chunk chunk) {
-        cache.entrySet().removeIf(entry -> {
-            if (!entry.getKey().getChunk().equals(chunk)) return false;
-
-            Consumer<String> handler = unloadHandlers.get(entry.getValue().type());
-            if (handler != null) handler.accept(entry.getValue().id());
-            return true;
-        });
+        cache.entrySet().removeIf(entry -> entry.getKey()
+                .getChunk()
+                .equals(chunk));
     }
 
     private NamespacedKey keyFor(Block block, String type) {

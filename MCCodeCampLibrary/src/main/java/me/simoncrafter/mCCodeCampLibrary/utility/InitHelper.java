@@ -1,6 +1,7 @@
 package me.simoncrafter.mCCodeCampLibrary.utility;
 
 import me.simoncrafter.mCCodeCampLibrary.internal.BlockMarkerRegistry;
+import me.simoncrafter.mCCodeCampLibrary.internal.EntityMarkerRegistry;
 import me.simoncrafter.mCCodeCampLibrary.internal.Listeners;
 import me.simoncrafter.mCCodeCampLibrary.internal.activation.ActivationListeners;
 import org.bukkit.Bukkit;
@@ -11,6 +12,7 @@ public class InitHelper {
 
     private static Plugin plugin;
     private static BlockMarkerRegistry blockMarkerRegistry;
+    private static EntityMarkerRegistry entityMarkerRegistry;
     public static Plugin getPlugin() {
         return plugin;
     }
@@ -19,13 +21,18 @@ public class InitHelper {
         return blockMarkerRegistry;
     }
 
+    public static EntityMarkerRegistry getEntityMarkerRegistry() {
+        return entityMarkerRegistry;
+    }
+
     public static void init(@NotNull Plugin plugin) {
         if (InitHelper.plugin != null) {
             return;
         }
         InitHelper.plugin = plugin;
-        registerEventListeners(plugin);
         InitHelper.blockMarkerRegistry = new BlockMarkerRegistry(plugin);
+        InitHelper.entityMarkerRegistry = new EntityMarkerRegistry(plugin);
+        registerEventListeners(plugin);
     }
 
     private static void registerEventListeners(Plugin plugin) {

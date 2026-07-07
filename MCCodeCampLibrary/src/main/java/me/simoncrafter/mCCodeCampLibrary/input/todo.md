@@ -43,4 +43,9 @@ ___
 ___
 
 ## Button
-Make arrow activations actually set the entity
+~~Make arrow/snowball activations actually set the entity~~ done via ProjectileHitEvent
+
+## Entity marking
+No author-facing way to set/remove "npc" markers yet (EntityMarkerRegistry only has
+the read side) — needs an equivalent of ButtonHandler's placement flow once
+"Placing and creating inputs" is tackled.

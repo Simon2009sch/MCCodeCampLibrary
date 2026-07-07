@@ -10,8 +10,8 @@ public class PressurePlateActivationEventEntity extends EntityBlockActivationEve
 
     private static final HandlerList HANDLER_LIST = new HandlerList();
 
-    public PressurePlateActivationEventEntity(@NotNull Entity entity, Block block, String id) {
-        super(entity, block, id);
+    public PressurePlateActivationEventEntity(@NotNull Entity entity, String id, Block block) {
+        super(entity, id, block);
     }
 
     @Override

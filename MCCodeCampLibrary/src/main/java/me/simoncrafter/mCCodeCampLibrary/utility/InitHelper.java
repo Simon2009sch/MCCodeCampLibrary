@@ -4,6 +4,7 @@ import me.simoncrafter.mCCodeCampLibrary.internal.BlockMarkerRegistry;
 import me.simoncrafter.mCCodeCampLibrary.internal.EntityMarkerRegistry;
 import me.simoncrafter.mCCodeCampLibrary.internal.Listeners;
 import me.simoncrafter.mCCodeCampLibrary.internal.activation.ActivationListeners;
+import me.simoncrafter.mCCodeCampLibrary.internal.activation.RegionActivationHandler;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -38,6 +39,7 @@ public class InitHelper {
     private static void registerEventListeners(Plugin plugin) {
         Bukkit.getPluginManager().registerEvents(new Listeners(), plugin);
         Bukkit.getPluginManager().registerEvents(new ActivationListeners(), plugin);
+        Bukkit.getPluginManager().registerEvents(new RegionActivationHandler(), plugin);
     }
 
 }

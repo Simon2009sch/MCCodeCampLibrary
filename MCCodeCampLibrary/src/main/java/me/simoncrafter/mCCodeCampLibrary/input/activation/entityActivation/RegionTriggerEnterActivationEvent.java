@@ -5,11 +5,11 @@ import org.bukkit.entity.Entity;
 import org.bukkit.event.HandlerList;
 import org.jetbrains.annotations.NotNull;
 
-public class AreaTriggerActivationEvent extends EntityActivationEvent {
+public class RegionTriggerEnterActivationEvent extends EntityActivationEvent {
 
     private static final HandlerList HANDLER_LIST = new HandlerList();
 
-    public AreaTriggerActivationEvent(@NotNull Entity entity, String id) {
+    public RegionTriggerEnterActivationEvent(@NotNull Entity entity, String id) {
         super(entity, id);
     }
 

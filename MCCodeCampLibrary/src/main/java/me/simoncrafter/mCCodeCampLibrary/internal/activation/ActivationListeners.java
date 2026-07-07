@@ -1,9 +1,5 @@
 package me.simoncrafter.mCCodeCampLibrary.internal.activation;
 
-import com.sk89q.worldedit.bukkit.BukkitAdapter;
-import com.sk89q.worldguard.WorldGuard;
-import com.sk89q.worldguard.protection.regions.RegionContainer;
-import com.sk89q.worldguard.protection.regions.RegionQuery;
 import me.simoncrafter.mCCodeCampLibrary.input.activation.blockActivation.PressurePlateDeactivationEvent;
 import me.simoncrafter.mCCodeCampLibrary.input.activation.entityActivation.entityTargetEntityActivation.EntityKillActivationEvent;
 import me.simoncrafter.mCCodeCampLibrary.input.activation.entityActivation.entityTargetEntityActivation.EntityLeftClickActivationEvent;
@@ -26,7 +22,6 @@ import org.bukkit.event.entity.EntityInteractEvent;
 import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.event.player.PlayerMoveEvent;
 
 import java.util.Optional;
 
@@ -84,15 +79,6 @@ public class ActivationListeners implements Listener {
         EntityDamageEvent lastDamage = target.getLastDamageCause();
         if (!(lastDamage instanceof EntityDamageByEntityEvent damageByEntity)) return;
         activateEntityKill(target, damageByEntity.getDamager());
-    }
-
-    @EventHandler
-    public void onPlayerMove(PlayerMoveEvent event) {
-        RegionContainer container = WorldGuard.getInstance().getPlatform()
-                .getRegionContainer();
-        RegionQuery query = container.createQuery();
-        query.getApplicableRegions(BukkitAdapter.adapt(event.getTo()));
-
     }
 
     private boolean activateButton(Block block, Entity entity) {

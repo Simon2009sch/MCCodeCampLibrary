@@ -11,6 +11,7 @@
     </option>
     <option name="enabledProfiles">
       <list>
+        <option value="library" />
         <option value="dev" />
       </list>
     </option>

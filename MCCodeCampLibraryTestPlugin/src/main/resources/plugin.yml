@@ -4,3 +4,6 @@ version: '${version}'
 main: me.simoncrafter.mCCodeCampLibraryTestPlugin.MCCodeCampLibraryTestPlugin
 api-version: '1.21.11'
 load: POSTWORLD
+
+commands:
+  coursedit: {}

@@ -1,15 +1,15 @@
 package me.simoncrafter.mCCodeCampLibrary.input.activation;
 
 import org.bukkit.block.Block;
-import org.bukkit.entity.Entity;
+import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
-public abstract class EntityBlockActivationEvent extends EntityActivationEvent {
+public abstract class PlayerBlockActivationEvent extends PlayerActivationEvent {
 
     private final Block block;
 
-    public EntityBlockActivationEvent(@NotNull Entity entity, String id, Block block) {
-        super(entity, id);
+    public PlayerBlockActivationEvent(@NotNull Player player, String id, Block block) {
+        super(player, id);
         this.block = block;
     }
 

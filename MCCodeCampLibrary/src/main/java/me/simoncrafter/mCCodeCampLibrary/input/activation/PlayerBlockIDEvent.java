@@ -4,11 +4,11 @@ import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
-public abstract class PlayerBlockActivationEvent extends PlayerActivationEvent {
+public abstract class PlayerBlockIDEvent extends PlayerIDEvent {
 
     private final Block block;
 
-    public PlayerBlockActivationEvent(@NotNull Player player, String id, Block block) {
+    public PlayerBlockIDEvent(@NotNull Player player, String id, Block block) {
         super(player, id);
         this.block = block;
     }

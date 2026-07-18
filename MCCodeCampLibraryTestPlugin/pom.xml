@@ -20,6 +20,7 @@
   <properties>
     <java.version>21</java.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <plugin.deploy.dir>${env.PLUGINSFOLDER}</plugin.deploy.dir>
   </properties>
 
   <build>
@@ -47,31 +48,6 @@
           </execution>
         </executions>
       </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-resources-plugin</artifactId>
-        <version>3.3.1</version>
-        <executions>
-          <execution>
-            <id>deploy-plugin-jar</id>
-            <phase>package</phase>
-            <goals>
-              <goal>copy-resources</goal>
-            </goals>
-            <configuration>
-              <outputDirectory>${env.PLUGINSFOLDER}</outputDirectory>
-              <resources>
-                <resource>
-                  <directory>${project.build.directory}</directory>
-                  <includes>
-                    <include>${project.build.finalName}.jar</include>
-                  </includes>
-                </resource>
-              </resources>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
     </plugins>
     <resources>
       <resource>
@@ -80,6 +56,100 @@
       </resource>
     </resources>
   </build>
+
+  <!--
+      Copies the final (post-shade) plugin jar from target/ to a local test-server plugins
+      folder right after packaging, so `mvn -Pdev clean package` also deploys it there.
+      Deliberately bound to the shaded jar in target/, not a custom jar-plugin outputDirectory,
+      since maven-shade-plugin overwrites that same target/ location with the dependency-bundled
+      jar after maven-jar-plugin's default-jar execution runs.
+
+      Auto-activates only when the PLUGINSFOLDER env var is set (same var on Windows and Linux
+      dev machines), so machines without a local test server configured - CI included - just
+      skip this step instead of failing.
+  -->
+  <profiles>
+    <profile>
+      <id>deploy-local-jar</id>
+      <activation>
+        <property>
+          <name>env.PLUGINSFOLDER</name>
+        </property>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-resources-plugin</artifactId>
+            <version>3.3.1</version>
+            <executions>
+              <execution>
+                <id>deploy-plugin-jar</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>copy-resources</goal>
+                </goals>
+                <configuration>
+                  <outputDirectory>${plugin.deploy.dir}</outputDirectory>
+                  <resources>
+                    <resource>
+                      <directory>${project.build.directory}</directory>
+                      <includes>
+                        <include>${project.build.finalName}.jar</include>
+                      </includes>
+                    </resource>
+                  </resources>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+
+    <!--
+        Runs deploy-local.sh (gitignored, per-developer - not committed) after packaging, to
+        push the jar wherever it needs to go (e.g. SFTP + a follow-up API call). Auto-activates
+        purely by that script's presence, so machines without it - teammates, CI - just skip it.
+        Invoked via the `bash` command so the same script works unmodified on Linux and on
+        Windows machines with WSL installed (WSL provides a `bash` shim on PATH). If `bash`
+        isn't on PATH on your Windows machine, change the <executable> below to `wsl`.
+    -->
+    <profile>
+      <id>deploy-remote</id>
+      <activation>
+        <file>
+          <exists>${basedir}/deploy-local.sh</exists>
+        </file>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>exec-maven-plugin</artifactId>
+            <version>3.5.0</version>
+            <executions>
+              <execution>
+                <id>deploy-remote-jar</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>exec</goal>
+                </goals>
+                <configuration>
+                  <executable>bash</executable>
+                  <workingDirectory>${project.basedir}</workingDirectory>
+                  <arguments>
+                    <argument>deploy-local.sh</argument>
+                    <argument>${project.build.directory}/${project.build.finalName}.jar</argument>
+                  </arguments>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 
   <repositories>
       <repository>

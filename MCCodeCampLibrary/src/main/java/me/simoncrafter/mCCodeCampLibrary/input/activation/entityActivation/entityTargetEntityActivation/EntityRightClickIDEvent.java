@@ -1,15 +1,15 @@
 package me.simoncrafter.mCCodeCampLibrary.input.activation.entityActivation.entityTargetEntityActivation;
 
-import me.simoncrafter.mCCodeCampLibrary.input.activation.entityActivation.EntityTargetActivationEvent;
+import me.simoncrafter.mCCodeCampLibrary.input.activation.entityActivation.EntityTargetIDEvent;
 import org.bukkit.entity.Entity;
 import org.bukkit.event.HandlerList;
 import org.jetbrains.annotations.NotNull;
 
-public class EntityLeftClickActivationEvent extends EntityTargetActivationEvent {
+public class EntityRightClickIDEvent extends EntityTargetIDEvent {
 
     private static final HandlerList HANDLER_LIST = new HandlerList();
 
-    public EntityLeftClickActivationEvent(@NotNull Entity entity, String id, Entity target) {
+    public EntityRightClickIDEvent(@NotNull Entity entity, String id, Entity target) {
         super(entity, id, target);
     }
 

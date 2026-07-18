@@ -2,7 +2,8 @@ package me.simoncrafter.mCCodeCampLibraryTestPlugin;
 
 import me.simoncrafter.mCCodeCampLibrary.commands.CourseEditCommand;
 import me.simoncrafter.mCCodeCampLibrary.utility.MCCodeCampLib;
-import org.bukkit.Bukkit;
+import net.kyori.adventure.text.Component;import org.bukkit.Bukkit;
+import org.bukkit.command.CommandExecutor;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class MCCodeCampLibraryTestPlugin extends JavaPlugin {
@@ -10,7 +11,8 @@ public final class MCCodeCampLibraryTestPlugin extends JavaPlugin {
     @Override
     public void onEnable() {
         MCCodeCampLib.init(this);
-        Bukkit.getPluginCommand("coursedit").setExecutor(new CourseEditCommand());
+        Bukkit.getPluginCommand("coursedit").setExecutor((CommandExecutor) new CourseEditCommand());
+        Bukkit.broadcast(Component.text("Reloaded!"));
     }
 
     @Override

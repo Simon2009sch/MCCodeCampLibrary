@@ -17,7 +17,6 @@ import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.questions.YesNoQuesti
 import me.simoncrafter.CraftersDisplayLibrary.core.PropertyLock;
 import me.simoncrafter.CraftersDisplayLibrary.core.interfaces.ICuboidDisplay;
 import me.simoncrafter.CraftersDisplayLibrary.core.interfaces.IDisplayable;
-import me.simoncrafter.CraftersDisplayLibrary.core.interfaces.IHidable;
 import me.simoncrafter.CraftersDisplayLibrary.display.cube.CubeColorDisplay;
 import me.simoncrafter.CraftersDisplayLibrary.display.panel.TextDisplay;
 import me.simoncrafter.CraftersDisplayLibrary.display.wireframecube.WireframeCubeColorDisplay;
@@ -67,7 +66,7 @@ public class LocationEditor {
         }
 
         createNewPlayerTargetBlock.put(player, player.getTargetBlock(transparent, 5));
-        BlockHighlighter.highlightBlock(createNewPlayerTargetBlock.get(player), HighlightDisplayType.CUBE, new PingHighlighter(0.01f, 1.1f, Color.GREEN, 20), 200);
+        BlockHighlighter.highlightBlock(createNewPlayerTargetBlock.get(player), HighlightDisplayType.CUBE, new PingHighlighter(0.01f, 2f, Color.GREEN, 20), 200);
 
         GenericQuestion inputQuestion = GenericQuestion.create().question(Component.text("What type of input do you want to create?", NamedTextColor.BLUE))
                 .addButton(getInputTypeButton(Component.text("[Button]", NamedTextColor.GREEN), "button"))
@@ -160,7 +159,7 @@ public class LocationEditor {
     private static void setVisibilityForEveryDisplayForPlayer(Player player, boolean hidden) {
         for (ICuboidDisplay display : displayMap.values()) {
             doForEveryChild(display, d -> {
-                if (d instanceof IHidable hidable) {
+                if (d instanceof IDisplayable hidable) {
                     if (hidden) {
                         hidable.hideForPlayer(player);
                     } else {
@@ -192,7 +191,7 @@ public class LocationEditor {
         for (Location l : map.keySet()) {
             BlockMarkerEntry entry = map.get(l);
 
-            ICuboidDisplay display = BlockHighlighter.highlightBlock(l.getBlock(), HighlightDisplayType.CUBE, null, -1, -1);
+            ICuboidDisplay display = BlockHighlighter.highlightBlock(l.getBlock(), getColorFromType(entry.type()));
             TextDisplay text = TextDisplay.create(l, new Vector3f(1, 1, 1), new Vector3f(), new Quaternionf());
             text.setBillboard(Display.Billboard.CENTER);
             text.setAlignment(org.bukkit.entity.TextDisplay.TextAlignment.CENTER);
@@ -204,7 +203,6 @@ public class LocationEditor {
             CubeColorDisplay cube = (CubeColorDisplay) display;
             cube.setSeeThrough(true);
             cube.hideByDefault(true);
-            cube.setColor(getColorFromType(entry.type()));
             display.addChild(text);
 
             Bukkit.broadcast(Component.text(entry.type() + " " + entry.id()));

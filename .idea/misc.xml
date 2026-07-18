@@ -11,11 +11,14 @@
     </option>
     <option name="enabledProfiles">
       <list>
+        <option value="deploy-remote" />
+        <option value="library" />
         <option value="dev" />
+        <option value="deploy-local-jar" />
       </list>
     </option>
   </component>
-  <component name="ProjectRootManager" version="2" languageLevel="JDK_26" default="true" project-jdk-name="openjdk-26" project-jdk-type="JavaSDK">
+  <component name="ProjectRootManager" version="2" languageLevel="JDK_25" project-jdk-name="25 (2)" project-jdk-type="JavaSDK">
     <output url="file://$PROJECT_DIR$/out" />
   </component>
 </project>

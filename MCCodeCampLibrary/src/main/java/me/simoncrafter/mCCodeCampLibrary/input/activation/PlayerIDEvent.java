@@ -1,13 +1,14 @@
 package me.simoncrafter.mCCodeCampLibrary.input.activation;
 
+import me.simoncrafter.mCCodeCampLibrary.internal.events.IDEvent;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
-public abstract class PlayerActivationEvent extends ActivationEvent {
+public abstract class PlayerIDEvent extends IDEvent {
 
     private final Player player;
 
-    protected PlayerActivationEvent(@NotNull Player player, String id) {
+    protected PlayerIDEvent(@NotNull Player player, String id) {
         super(id);
         this.player = player;
     }

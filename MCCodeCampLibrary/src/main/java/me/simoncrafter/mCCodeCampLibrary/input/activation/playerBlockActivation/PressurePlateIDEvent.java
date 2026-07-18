@@ -1,16 +1,16 @@
 package me.simoncrafter.mCCodeCampLibrary.input.activation.playerBlockActivation;
 
-import me.simoncrafter.mCCodeCampLibrary.input.activation.PlayerBlockActivationEvent;
+import me.simoncrafter.mCCodeCampLibrary.input.activation.PlayerBlockIDEvent;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.HandlerList;
 import org.jetbrains.annotations.NotNull;
 
-public class ButtonActivationEvent extends PlayerBlockActivationEvent {
+public class PressurePlateIDEvent extends PlayerBlockIDEvent {
 
     private static final HandlerList HANDLER_LIST = new HandlerList();
 
-    public ButtonActivationEvent(@NotNull Player player, String id, Block block) {
+    public PressurePlateIDEvent(@NotNull Player player, String id, Block block) {
         super(player, id, block);
     }
 

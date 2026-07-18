@@ -1,12 +1,13 @@
 package me.simoncrafter.mCCodeCampLibrary.input.activation;
 
+import me.simoncrafter.mCCodeCampLibrary.internal.events.IDEvent;
 import org.bukkit.block.Block;
 
-public abstract class BlockActivationEvent extends ActivationEvent {
+public abstract class BlockIDEvent extends IDEvent {
 
     private final Block block;
 
-    public BlockActivationEvent(String id, Block block) {
+    public BlockIDEvent(String id, Block block) {
         super(id);
         this.block = block;
     }

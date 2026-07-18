@@ -5,8 +5,8 @@ import com.sk89q.worldguard.WorldGuard;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import com.sk89q.worldguard.protection.regions.RegionContainer;
 import com.sk89q.worldguard.protection.regions.RegionQuery;
-import me.simoncrafter.mCCodeCampLibrary.input.activation.entityActivation.RegionTriggerEnterActivationEvent;
-import me.simoncrafter.mCCodeCampLibrary.input.activation.entityActivation.RegionTriggerLeaveActivationEvent;
+import me.simoncrafter.mCCodeCampLibrary.input.activation.entityActivation.RegionTriggerEnterIDEvent;
+import me.simoncrafter.mCCodeCampLibrary.input.activation.entityActivation.RegionTriggerLeaveIDEvent;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -39,12 +39,12 @@ public class RegionActivationHandler implements Listener {
 
         for (String regionId : currentRegions) {
             if (!previousRegions.contains(regionId)) {
-                new RegionTriggerEnterActivationEvent(player, regionId.substring(TRIGGER_PREFIX.length())).callEvent();
+                new RegionTriggerEnterIDEvent(player, regionId.substring(TRIGGER_PREFIX.length())).callEvent();
             }
         }
         for (String regionId : previousRegions) {
             if (!currentRegions.contains(regionId)) {
-                new RegionTriggerLeaveActivationEvent(player, regionId.substring(TRIGGER_PREFIX.length())).callEvent();
+                new RegionTriggerLeaveIDEvent(player, regionId.substring(TRIGGER_PREFIX.length())).callEvent();
             }
         }
 

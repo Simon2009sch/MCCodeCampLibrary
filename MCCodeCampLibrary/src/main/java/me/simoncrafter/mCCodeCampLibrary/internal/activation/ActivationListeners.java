@@ -1,14 +1,12 @@
 package me.simoncrafter.mCCodeCampLibrary.internal.activation;
 
 import me.simoncrafter.mCCodeCampLibrary.input.activation.blockActivation.PressurePlateDeactivationEvent;
-import me.simoncrafter.mCCodeCampLibrary.input.activation.entityActivation.entityTargetEntityActivation.EntityKillActivationEvent;
-import me.simoncrafter.mCCodeCampLibrary.input.activation.entityActivation.entityTargetEntityActivation.EntityLeftClickActivationEvent;
-import me.simoncrafter.mCCodeCampLibrary.input.activation.entityActivation.entityTargetEntityActivation.EntityRightClickActivationEvent;
-import me.simoncrafter.mCCodeCampLibrary.input.activation.playerBlockActivation.ButtonActivationEvent;
-import me.simoncrafter.mCCodeCampLibrary.input.activation.playerBlockActivation.PressurePlateActivationEvent;
+import me.simoncrafter.mCCodeCampLibrary.input.activation.entityActivation.entityTargetEntityActivation.EntityKillIDEvent;
+import me.simoncrafter.mCCodeCampLibrary.input.activation.entityActivation.entityTargetEntityActivation.EntityLeftClickIDEvent;
+import me.simoncrafter.mCCodeCampLibrary.input.activation.entityActivation.entityTargetEntityActivation.EntityRightClickIDEvent;
+import me.simoncrafter.mCCodeCampLibrary.input.activation.playerBlockActivation.ButtonIDEvent;
+import me.simoncrafter.mCCodeCampLibrary.input.activation.playerBlockActivation.PressurePlateIDEvent;
 import me.simoncrafter.mCCodeCampLibrary.utility.MCCodeCampLib;
-import net.kyori.adventure.text.Component;
-import org.bukkit.Bukkit;
 import org.bukkit.Tag;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.Powerable;
@@ -82,7 +80,7 @@ public class ActivationListeners implements Listener {
             return false;
         }
 
-        ButtonActivationEvent callEvent = new ButtonActivationEvent(player, returnedMarker.get(), block);
+        ButtonIDEvent callEvent = new ButtonIDEvent(player, returnedMarker.get(), block);
 
         if (Tag.BUTTONS.isTagged(block.getType())) {
             Powerable button = (Powerable) block.getBlockData();
@@ -102,7 +100,7 @@ public class ActivationListeners implements Listener {
         Powerable plate = (Powerable) block.getBlockData();
         if (plate.isPowered()) return;
 
-        new PressurePlateActivationEvent(player, returnedMarker.get(), block).callEvent();
+        new PressurePlateIDEvent(player, returnedMarker.get(), block).callEvent();
     }
 
     private void deactivatePressurePlate(Block block) {
@@ -116,17 +114,17 @@ public class ActivationListeners implements Listener {
 
     private void activateEntityRightClick(Entity target, Entity entity) {
         MCCodeCampLib.getEntityMarkerRegistry().getMarker(target, NPC_MARKER_TYPE)
-                .ifPresent(id -> new EntityRightClickActivationEvent(entity, id, target).callEvent());
+                .ifPresent(id -> new EntityRightClickIDEvent(entity, id, target).callEvent());
     }
 
     private void activateEntityLeftClick(Entity target, Entity entity) {
         MCCodeCampLib.getEntityMarkerRegistry().getMarker(target, NPC_MARKER_TYPE)
-                .ifPresent(id -> new EntityLeftClickActivationEvent(entity, id, target).callEvent());
+                .ifPresent(id -> new EntityLeftClickIDEvent(entity, id, target).callEvent());
     }
 
     private void activateEntityKill(Entity target, Entity entity) {
         MCCodeCampLib.getEntityMarkerRegistry().getMarker(target, NPC_MARKER_TYPE)
-                .ifPresent(id -> new EntityKillActivationEvent(entity, id, target).callEvent());
+                .ifPresent(id -> new EntityKillIDEvent(entity, id, target).callEvent());
     }
 
 }

@@ -7,7 +7,6 @@
   <packaging>pom</packaging>
   <name>MCCodeCampLibrary</name>
   <url>http://maven.apache.org</url>
-
   <profiles>
     <profile>
       <id>library</id>

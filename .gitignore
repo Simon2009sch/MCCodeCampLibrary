@@ -43,3 +43,6 @@ build/
 
 ## claude
 .claude
+
+### Local dev-only deploy scripts (per-developer, not shared) ###
+/MCCodeCampLibraryTestPlugin/deploy-local.sh

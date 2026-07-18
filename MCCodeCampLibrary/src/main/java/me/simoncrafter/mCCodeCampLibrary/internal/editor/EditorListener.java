@@ -1,10 +1,10 @@
 package me.simoncrafter.mCCodeCampLibrary.internal.editor;
 
 import me.simoncrafter.mCCodeCampLibrary.input.activation.blockActivation.PressurePlateDeactivationEvent;
-import me.simoncrafter.mCCodeCampLibrary.input.activation.entityActivation.RegionTriggerEnterActivationEvent;
-import me.simoncrafter.mCCodeCampLibrary.input.activation.entityActivation.RegionTriggerLeaveActivationEvent;
-import me.simoncrafter.mCCodeCampLibrary.input.activation.playerBlockActivation.ButtonActivationEvent;
-import me.simoncrafter.mCCodeCampLibrary.input.activation.playerBlockActivation.PressurePlateActivationEvent;
+import me.simoncrafter.mCCodeCampLibrary.input.activation.entityActivation.RegionTriggerEnterIDEvent;
+import me.simoncrafter.mCCodeCampLibrary.input.activation.entityActivation.RegionTriggerLeaveIDEvent;
+import me.simoncrafter.mCCodeCampLibrary.input.activation.playerBlockActivation.ButtonIDEvent;
+import me.simoncrafter.mCCodeCampLibrary.input.activation.playerBlockActivation.PressurePlateIDEvent;
 import me.simoncrafter.mCCodeCampLibrary.internal.events.BlockRegistryUpdateEvent;
 import me.simoncrafter.mCCodeCampLibrary.utility.MCCodeCampLib;
 import net.kyori.adventure.text.Component;
@@ -75,12 +75,12 @@ public class EditorListener implements Listener {
     }
 
     @EventHandler
-    public void onButtonActivation(ButtonActivationEvent event) {
+    public void onButtonActivation(ButtonIDEvent event) {
         event.getPlayer().sendMessage(Component.text(event.getId() + " " + event.getBlock().getType()));
     }
 
     @EventHandler
-    public void onPressurePlateActivation(PressurePlateActivationEvent event) {
+    public void onPressurePlateActivation(PressurePlateIDEvent event) {
         event.getPlayer().sendMessage(Component.text(event.getId() + " " + event.getBlock().getType()));
     }
 
@@ -90,14 +90,14 @@ public class EditorListener implements Listener {
     }
 
     @EventHandler
-    public void onRegionTriggerEnterActivation(RegionTriggerEnterActivationEvent event) {
+    public void onRegionTriggerEnterActivation(RegionTriggerEnterIDEvent event) {
         if (event.getEntity() instanceof Player player) {
             player.sendMessage(Component.text("You entered " + event.getId()));
         }
     }
 
     @EventHandler
-    public void onRegionTriggerLeaveActivation(RegionTriggerLeaveActivationEvent event) {
+    public void onRegionTriggerLeaveActivation(RegionTriggerLeaveIDEvent event) {
         if (event.getEntity() instanceof Player player) {
             player.sendMessage(Component.text("You left " + event.getId()));
         }

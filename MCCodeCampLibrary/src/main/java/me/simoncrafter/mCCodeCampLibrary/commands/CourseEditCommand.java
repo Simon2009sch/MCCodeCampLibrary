@@ -19,7 +19,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
-public class CourseEditCommand implements CommandExecutor, TabExecutor {
+public class CourseEditCommand implements TabExecutor, org.bukkit.command.CommandExecutor {
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String @NotNull [] args) {

@@ -6,11 +6,11 @@ ___
 - [ ] Placing and creating inputs
 - [ ] Removing inputs
 - [ ] Input types
-  - [ ] Button
-  - [ ] Pressure Plate
+  - [x] Button
+  - [x] Pressure Plate
   - [ ] Chat (Simple prompt, to Questioner)
   - [ ] Sign
-  - [ ] Area Trigger
+  - [x] Area Trigger
   - [ ] NPC / Entity Click & kill trigger
   - [ ] NPC Dialog
 - [ ] Outputs

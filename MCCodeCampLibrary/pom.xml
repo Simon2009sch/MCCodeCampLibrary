@@ -82,7 +82,7 @@
         <dependency>
             <groupId>com.github.Simon2009sch</groupId>
             <artifactId>CraftersDisplayLibrary</artifactId>
-            <version>v1.2.0</version>
+            <version>v1.2.0b</version>
         </dependency>
         <dependency>
             <groupId>com.github.Simon2009sch</groupId>

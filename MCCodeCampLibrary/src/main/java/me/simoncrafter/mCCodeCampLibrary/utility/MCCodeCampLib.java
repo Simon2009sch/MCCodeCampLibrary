@@ -10,6 +10,7 @@ import me.simoncrafter.mCCodeCampLibrary.internal.Listeners;
 import me.simoncrafter.mCCodeCampLibrary.internal.activation.ActivationListeners;
 import me.simoncrafter.mCCodeCampLibrary.internal.activation.RegionActivationHandler;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.EditorListener;
+import me.simoncrafter.mCCodeCampLibrary.obstical.AAnimatedOpenableObject;
 import me.simoncrafter.mCCodeCampLibrary.obstical.AOpenableObject;
 import me.simoncrafter.mCCodeCampLibrary.obstical.Door.PivotingDoor;
 import me.simoncrafter.mCCodeCampLibrary.obstical.Door.SimpleDoor;
@@ -85,16 +86,17 @@ public class MCCodeCampLib {
                 new Location(Bukkit.getWorlds().get(0), -1235, 90, 1141),
                 getBlockVectorList(new Vector(1, 4, 3)), Material.BEDROCK, Material.BARRIER);
         */
-        /*
+
         door = new PivotingDoor("test_door",
                 new Location(Bukkit.getWorlds().get(0), -1235, 90, 1141),
                 getBlockVectorList(new Vector(1, 4, 3)),
-                20, new Vector(0.5f, 0, 0.5f), false, 80);
-        */
-        door = new SlidingDoor("test_door",
+                20, new Vector(0.5f, 0, 0.5f), true, 80);
+
+        /*door = new SlidingDoor("test_door",
                 new Location(Bukkit.getWorlds().get(0), -1235, 90, 1141),
                 getBlockVectorList(new Vector(1, 4, 3)),
-                20, new Vector(0.5f, 0, 0.5f), false, new Vector(0, 0, -3));
+                20, new Vector(0.5f, 0, 0.5f), true, new Vector(0, 0, -3));
+        */
 
     }
 

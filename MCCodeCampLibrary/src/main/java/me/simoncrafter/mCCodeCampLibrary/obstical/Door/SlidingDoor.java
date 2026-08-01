@@ -9,6 +9,8 @@ import org.bukkit.Location;
 import org.bukkit.util.Vector;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
+import org.spongepowered.configurate.ConfigurationNode;
+import org.spongepowered.configurate.serialize.SerializationException;
 
 import java.util.Set;
 
@@ -16,9 +18,13 @@ public class SlidingDoor extends AAnimatedOpenableObject {
 
     private Vector openPosition;
 
-    public SlidingDoor(String ID, Location origen, Set<Vector> blocks, int animationDuration, Vector pivotPosition, boolean addCollision, Vector openPosition) {
-        super(ID, origen, blocks, animationDuration, pivotPosition, addCollision);
-        this.openPosition = openPosition;
+    @Override
+    protected void readConfig() {
+        super.readConfig();
+        ConfigurationNode config = getConfig();
+
+        openPosition = readVector(config.node("openPosition"), 0, 0, 0);
+
         openAnimationFunction = (obj, duration) -> {
             obj.scaleAbsolute(new Vector3f(0.999f, 0.999f, 0.999f), 1);
             obj.moveAbsolute(openPosition.toVector3f(), duration);
@@ -26,5 +32,18 @@ public class SlidingDoor extends AAnimatedOpenableObject {
         closeAnimationFunction = (obj, duration) -> {
             obj.moveAbsolute(new Vector3f(0, 0, 0), duration);
         };
+    }
+
+    public Vector getOpenPosition() {
+        return openPosition.clone();
+    }
+
+    public void setOpenPosition(Vector openPosition) {
+        this.openPosition = openPosition;
+        try {
+            getConfig().node("openPosition").from(writeVector(openPosition));
+        } catch (SerializationException e) {
+            getPlugin().getLogger().warning("There was an error while trying to serialize a vector into config!");
+        }
     }
 }

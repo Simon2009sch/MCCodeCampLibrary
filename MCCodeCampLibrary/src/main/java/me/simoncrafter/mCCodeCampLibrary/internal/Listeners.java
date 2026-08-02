@@ -1,8 +1,10 @@
 package me.simoncrafter.mCCodeCampLibrary.internal;
 
 import me.simoncrafter.CraftersDisplayLibrary.persistence.DisplayPersistence;
-import me.simoncrafter.mCCodeCampLibrary.input.activation.playerBlockActivation.ButtonIDEvent;
+import me.simoncrafter.mCCodeCampLibrary.input.activation.event.playerBlockActivation.ButtonIDEvent;
 import me.simoncrafter.mCCodeCampLibrary.utility.MCCodeCampLib;
+import net.kyori.adventure.text.Component;
+import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
@@ -26,7 +28,7 @@ public class Listeners implements Listener {
 
     @EventHandler
     public void onChunkUnload(ChunkUnloadEvent event) {
-        MCCodeCampLib.getBlockMarkerRegistry().onChunkUnload(event.getChunk());
+        //MCCodeCampLib.getBlockMarkerRegistry().onChunkUnload(event.getChunk());
     }
 
     @EventHandler
@@ -36,7 +38,8 @@ public class Listeners implements Listener {
 
     @EventHandler
     public void onButtonID(ButtonIDEvent event) {
-        if (event.getId().equals("test_door")) {
+        Bukkit.broadcast(Component.text("Pressed " + event.getID() + " button! (By: " + event.getPlayer() + ")"));
+        if (event.getID().equals("test_door")) {
             MCCodeCampLib.toggleDoor();
         }
     }

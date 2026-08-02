@@ -1,11 +1,11 @@
 package me.simoncrafter.mCCodeCampLibrary.internal.activation;
 
-import me.simoncrafter.mCCodeCampLibrary.input.activation.blockActivation.PressurePlateDeactivationEvent;
-import me.simoncrafter.mCCodeCampLibrary.input.activation.entityActivation.entityTargetEntityActivation.EntityKillIDEvent;
-import me.simoncrafter.mCCodeCampLibrary.input.activation.entityActivation.entityTargetEntityActivation.EntityLeftClickIDEvent;
-import me.simoncrafter.mCCodeCampLibrary.input.activation.entityActivation.entityTargetEntityActivation.EntityRightClickIDEvent;
-import me.simoncrafter.mCCodeCampLibrary.input.activation.playerBlockActivation.ButtonIDEvent;
-import me.simoncrafter.mCCodeCampLibrary.input.activation.playerBlockActivation.PressurePlateIDEvent;
+import me.simoncrafter.mCCodeCampLibrary.input.activation.event.blockActivation.PressurePlateDeactivationEvent;
+import me.simoncrafter.mCCodeCampLibrary.input.activation.event.entityActivation.entityTargetEntityActivation.EntityKillIDEvent;
+import me.simoncrafter.mCCodeCampLibrary.input.activation.event.entityActivation.entityTargetEntityActivation.EntityLeftClickIDEvent;
+import me.simoncrafter.mCCodeCampLibrary.input.activation.event.entityActivation.entityTargetEntityActivation.EntityRightClickIDEvent;
+import me.simoncrafter.mCCodeCampLibrary.input.activation.event.playerBlockActivation.ButtonIDEvent;
+import me.simoncrafter.mCCodeCampLibrary.input.activation.event.playerBlockActivation.PressurePlateIDEvent;
 import me.simoncrafter.mCCodeCampLibrary.utility.MCCodeCampLib;
 import org.bukkit.Tag;
 import org.bukkit.block.Block;
@@ -75,7 +75,7 @@ public class ActivationListeners implements Listener {
     }
 
     private boolean activateButton(Block block, Player player) {
-        Optional<String> returnedMarker = MCCodeCampLib.getBlockMarkerRegistry().getMarker(block, "button");
+        /*Optional<String> returnedMarker = MCCodeCampLib.getBlockMarkerRegistry().getMarker(block, "button");
         if (returnedMarker.isEmpty()) {
             return false;
         }
@@ -88,11 +88,13 @@ public class ActivationListeners implements Listener {
             return false;
         }
         callEvent.callEvent();
-        return true;
+        return true;*/
+        return false;
     }
 
+
     private void activatePressurePlate(Block block, Player player) {
-        if (!Tag.PRESSURE_PLATES.isTagged(block.getType())) return;
+        /*if (!Tag.PRESSURE_PLATES.isTagged(block.getType())) return;
 
         Optional<String> returnedMarker = MCCodeCampLib.getBlockMarkerRegistry().getMarker(block, "plate");
         if (returnedMarker.isEmpty()) return;
@@ -100,31 +102,31 @@ public class ActivationListeners implements Listener {
         Powerable plate = (Powerable) block.getBlockData();
         if (plate.isPowered()) return;
 
-        new PressurePlateIDEvent(player, returnedMarker.get(), block).callEvent();
+        new PressurePlateIDEvent(player, returnedMarker.get(), block).callEvent();*/
     }
 
     private void deactivatePressurePlate(Block block) {
-        if (!Tag.PRESSURE_PLATES.isTagged(block.getType())) return;
+        /*if (!Tag.PRESSURE_PLATES.isTagged(block.getType())) return;
 
         Optional<String> returnedMarker = MCCodeCampLib.getBlockMarkerRegistry().getMarker(block, "plate");
         if (returnedMarker.isEmpty()) return;
 
-        new PressurePlateDeactivationEvent(returnedMarker.get(), block).callEvent();
+        new PressurePlateDeactivationEvent(returnedMarker.get(), block).callEvent();*/
     }
 
     private void activateEntityRightClick(Entity target, Entity entity) {
-        MCCodeCampLib.getEntityMarkerRegistry().getMarker(target, NPC_MARKER_TYPE)
-                .ifPresent(id -> new EntityRightClickIDEvent(entity, id, target).callEvent());
+        /*MCCodeCampLib.getEntityMarkerRegistry().getMarker(target, NPC_MARKER_TYPE)
+                .ifPresent(id -> new EntityRightClickIDEvent(entity, id, target).callEvent());*/
     }
 
     private void activateEntityLeftClick(Entity target, Entity entity) {
-        MCCodeCampLib.getEntityMarkerRegistry().getMarker(target, NPC_MARKER_TYPE)
-                .ifPresent(id -> new EntityLeftClickIDEvent(entity, id, target).callEvent());
+        /*MCCodeCampLib.getEntityMarkerRegistry().getMarker(target, NPC_MARKER_TYPE)
+                .ifPresent(id -> new EntityLeftClickIDEvent(entity, id, target).callEvent());*/
     }
 
     private void activateEntityKill(Entity target, Entity entity) {
-        MCCodeCampLib.getEntityMarkerRegistry().getMarker(target, NPC_MARKER_TYPE)
-                .ifPresent(id -> new EntityKillIDEvent(entity, id, target).callEvent());
+        /*MCCodeCampLib.getEntityMarkerRegistry().getMarker(target, NPC_MARKER_TYPE)
+                .ifPresent(id -> new EntityKillIDEvent(entity, id, target).callEvent());*/
     }
 
 }

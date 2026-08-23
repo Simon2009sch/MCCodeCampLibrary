@@ -237,6 +237,12 @@ public class HotbarMenu implements Listener {
             suppressedHeldSlotChanges.remove(player.getUniqueId());
             return;
         }
+        if (items[event.getNewSlot()] != null) {
+            items[event.getNewSlot()].onHover(event.getPlayer());
+        }
+        if (items[event.getPreviousSlot()] != null) {
+            items[event.getPreviousSlot()].onUnHover(event.getPlayer());
+        }
 
 
         int previousSlot = event.getPreviousSlot();

@@ -28,7 +28,7 @@ public class Listeners implements Listener {
 
     @EventHandler
     public void onChunkUnload(ChunkUnloadEvent event) {
-        //MCCodeCampLib.getBlockMarkerRegistry().onChunkUnload(event.getChunk());
+        MCCodeCampLib.getBlockMarkerRegistry().onChunkUnload(event.getChunk());
     }
 
     @EventHandler

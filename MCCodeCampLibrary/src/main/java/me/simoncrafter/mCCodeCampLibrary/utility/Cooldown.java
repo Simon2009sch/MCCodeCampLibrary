@@ -1,23 +1,28 @@
 package me.simoncrafter.mCCodeCampLibrary.utility;
 
-import org.bukkit.plugin.Plugin;
-import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.scheduler.BukkitTask;
+import org.bukkit.Bukkit;
 
 import java.util.HashSet;
 import java.util.Set;
 
+/**
+ * A tick-based cooldown that does not schedule any Bukkit tasks.
+ * <p>
+ * Elapsed detection is lazy: {@link #isOnCooldown()} compares the current tick
+ * against the stored release tick, and {@link #start(boolean)} runs the elapse
+ * callbacks if a previous cooldown has finished since the last check. No
+ * scheduler round-trips, no task to cancel on destroy.
+ */
 public class Cooldown {
-    private final Plugin plugin;
-    private int cooldown;
-    private boolean finished = true;
-    private BukkitTask cooldownTask;
-    private Set<Runnable> callbacks = new HashSet<>();
-    private Set<Runnable> startCallbacks = new HashSet<>();
 
-    public Cooldown(Plugin plugin, int cooldown) {
+    private int cooldown;
+    private long readyAtTick = 0;
+    private long callbacksFiredForReadyAt = 0;
+    private final Set<Runnable> callbacks = new HashSet<>();
+    private final Set<Runnable> startCallbacks = new HashSet<>();
+
+    public Cooldown(int cooldown) {
         this.cooldown = cooldown;
-        this.plugin = plugin;
     }
 
     public void registerCallback(Runnable callback) {
@@ -25,7 +30,7 @@ public class Cooldown {
     }
 
     public void registerStartCallback(Runnable callback) {
-        this.callbacks.add(callback);
+        this.startCallbacks.add(callback);
     }
 
     public int getCooldown() {
@@ -33,7 +38,7 @@ public class Cooldown {
     }
 
     /**
-     * Sets the cooldown time. Will not influence the currently running cooldown
+     * Sets the cooldown time. Will not influence the currently running cooldown.
      * @param cooldown
      */
     public void setCooldown(int cooldown) {
@@ -41,14 +46,15 @@ public class Cooldown {
     }
 
     /**
-     * @return Returns true if the cooldown hasn't elapsed jet. If the cooldown is over returns false
+     * @return {@code true} if the cooldown hasn't elapsed yet. If the cooldown is over
+     *         (or set to 0) returns {@code false}.
      */
     public boolean isOnCooldown() {
-        return finished;
+        return Bukkit.getCurrentTick() < readyAtTick;
     }
 
     /**
-     * Starts the cooldown
+     * Starts the cooldown.
      */
     public void start() {
         start(false);
@@ -56,42 +62,28 @@ public class Cooldown {
 
     /**
      * Starts the cooldown. If one is already running, {@code override} decides whether
-     * it gets cancelled and restarted (true) or the call is ignored (false).
+     * it gets restarted (true) or the call is ignored (false).
      */
     public void start(boolean overrideCurrentCooldown) {
         if (cooldown <= 0) {
-            finish();
             return;
         }
-        if (!finished && !overrideCurrentCooldown) {
+        if (isOnCooldown() && !overrideCurrentCooldown) {
             return;
         }
-        if (cooldownTask != null) {
-            cooldownTask.cancel();
-        }
-        finished = false;
-        cooldownTask = new BukkitRunnable() {
-            @Override
-            public void run() {
-                finish();
-            }
-        }.runTaskLater(plugin, cooldown);
+        fireElapsedCallbacks();
+        readyAtTick = Bukkit.getCurrentTick() + cooldown;
         startCallbacks.forEach(Runnable::run);
     }
 
-    public void forceEnd(boolean callFinishEvent) {
-        if (cooldownTask != null) {
-            cooldownTask.cancel();
-        }
-        if (callFinishEvent) {
-            finish();
-        }
-    }
-
-    private void finish() {
-        finished = true;
-        cooldownTask = null;
-        if (callbacks != null) {
+    /**
+     * Fires the elapse callbacks if a cooldown has finished since they were last fired.
+     * Safe to call at any time; each elapse fires the callbacks at most once.
+     */
+    private void fireElapsedCallbacks() {
+        long currentTick = Bukkit.getCurrentTick();
+        if (readyAtTick > 0 && readyAtTick <= currentTick && callbacksFiredForReadyAt != readyAtTick) {
+            callbacksFiredForReadyAt = readyAtTick;
             callbacks.forEach(Runnable::run);
         }
     }

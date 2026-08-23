@@ -11,7 +11,7 @@ public final class MCCodeCampLibraryTestPlugin extends JavaPlugin {
     @Override
     public void onEnable() {
         MCCodeCampLib.init(this);
-        Bukkit.getPluginCommand("coursedit").setExecutor((CommandExecutor) new CourseEditCommand());
+        Bukkit.getPluginCommand("coursedit").setExecutor((CommandExecutor) new CourseEditCommand(this));
         Bukkit.broadcast(Component.text("Reloaded!"));
     }
 

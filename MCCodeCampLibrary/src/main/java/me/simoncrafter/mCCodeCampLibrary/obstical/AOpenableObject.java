@@ -256,6 +256,17 @@ public abstract class AOpenableObject implements IOpenable, IBlockRegestryObject
         return blocks;
     }
 
+    /**
+     * Releases this openable object's world attachments. The base implementation
+     * unregisters this object's Bukkit event handlers (the {@code IBlockRegestryObject}
+     * contract); subclasses that hold displays or tasks should override and call
+     * {@code super.destroy()}.
+     */
+    @Override
+    public void destroy() {
+        IBlockRegestryObject.super.destroy();
+    }
+
     private Set<OpenableRegion> groupBlockRegions(Set<Vector> blocks) {
         if (blocks == null || blocks.isEmpty()) return new HashSet<>();
         Vector min = null;

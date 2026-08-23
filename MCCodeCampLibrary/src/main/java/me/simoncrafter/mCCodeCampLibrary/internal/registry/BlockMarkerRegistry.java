@@ -6,6 +6,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.world.ChunkLoadEvent;
+import org.bukkit.event.world.ChunkUnloadEvent;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
@@ -247,6 +248,48 @@ public class BlockMarkerRegistry implements Listener {
         parseChunk(event.getChunk());
     }
 
+    @EventHandler
+    public void onChunkUnloadEvent(ChunkUnloadEvent event) {
+        Chunk chunk = event.getChunk();
+        String worldName = chunk.getWorld().getName();
+        int chunkX = chunk.getX();
+        int chunkZ = chunk.getZ();
+
+        for (Map<String, IBlockRegestryObject> objectsOfType : registeredObjects.values()) {
+            objectsOfType.entrySet().removeIf(entry -> {
+                Location loc = entry.getValue().getLocation();
+                // Coordinate comparison only — Location.getChunk() would force-load the
+                // chunk that is currently unloading.
+                boolean inChunk = loc.getWorld().getName().equals(worldName)
+                        && (loc.getBlockX() >> 4) == chunkX
+                        && (loc.getBlockZ() >> 4) == chunkZ;
+                if (inChunk) {
+                    entry.getValue().destroy();
+                }
+                return inChunk;
+            });
+        }
+    }
+
+    public void onChunkUnload(Chunk chunk) {
+        String worldName = chunk.getWorld().getName();
+        int chunkX = chunk.getX();
+        int chunkZ = chunk.getZ();
+
+        for (Map<String, IBlockRegestryObject> objectsOfType : registeredObjects.values()) {
+            objectsOfType.entrySet().removeIf(entry -> {
+                Location loc = entry.getValue().getLocation();
+                boolean inChunk = loc.getWorld().getName().equals(worldName)
+                        && (loc.getBlockX() >> 4) == chunkX
+                        && (loc.getBlockZ() >> 4) == chunkZ;
+                if (inChunk) {
+                    entry.getValue().destroy();
+                }
+                return inChunk;
+            });
+        }
+    }
+
     public void onChunkLoad(Chunk chunk) {
         parseChunk(chunk);
     }
@@ -320,14 +363,22 @@ public class BlockMarkerRegistry implements Listener {
     }
 
     private void putObject(String type, String id, IBlockRegestryObject obj) {
-        registeredObjects.computeIfAbsent(type, k -> new HashMap<>()).put(id, obj);
+        Map<String, IBlockRegestryObject> objectsOfType = registeredObjects.computeIfAbsent(type, k -> new HashMap<>());
+        IBlockRegestryObject previous = objectsOfType.put(id, obj);
+        // A previous instance was replaced (e.g. chunk reload re-created the object from
+        // PDC) — release its world attachments so it doesn't keep firing events on stale state.
+        if (previous != null && previous != obj) {
+            previous.destroy();
+        }
     }
 
     private void removeObject(String type, String id) {
         Map<String, IBlockRegestryObject> objectsOfType = registeredObjects.get(type);
         if (objectsOfType != null) {
-            HandlerList.unregisterAll(objectsOfType.get(id));
-            objectsOfType.remove(id);
+            IBlockRegestryObject removed = objectsOfType.remove(id);
+            if (removed != null) {
+                removed.destroy();
+            }
         }
     }
 }

@@ -69,17 +69,6 @@
     </resources>
   </build>
 
-  <!--
-      Copies the final (post-shade) plugin jar from target/ to a local test-server plugins
-      folder right after packaging, so `mvn -Pdev clean package` also deploys it there.
-      Deliberately bound to the shaded jar in target/, not a custom jar-plugin outputDirectory,
-      since maven-shade-plugin overwrites that same target/ location with the dependency-bundled
-      jar after maven-jar-plugin's default-jar execution runs.
-
-      Auto-activates only when the PLUGINSFOLDER env var is set (same var on Windows and Linux
-      dev machines), so machines without a local test server configured - CI included - just
-      skip this step instead of failing.
-  -->
   <profiles>
     <profile>
       <id>deploy-local-jar</id>
@@ -120,16 +109,97 @@
     </profile>
 
     <!--
-        Runs deploy-local.sh (gitignored, per-developer - not committed) after packaging, to
-        push the jar wherever it needs to go (e.g. SFTP + a follow-up API call). Auto-activates
-        purely by that script's presence, so machines without it - teammates, CI - just skip it.
-        Invoked via the `bash` command so the same script works unmodified on Linux and on
-        Windows machines with WSL installed (WSL provides a `bash` shim on PATH). If `bash`
-        isn't on PATH on your Windows machine, change the <executable> below to `wsl`.
+      Per-developer remote deployment.
+
+      Copy deploy-local.example.py to deploy-local.py and configure the
+      PELICAN_* environment variables in the IDE. The Python launcher uses
+      only the standard library and works from native Windows, Linux, and WSL.
+      The personal deploy-local.py is gitignored and is activated only when
+      it exists, so normal builds remain local-only.
     -->
     <profile>
-      <id>deploy-remote</id>
+      <id>deploy-remote-python-windows</id>
       <activation>
+        <os>
+          <family>windows</family>
+        </os>
+        <file>
+          <exists>${basedir}/deploy-local.py</exists>
+        </file>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>exec-maven-plugin</artifactId>
+            <version>3.5.0</version>
+            <executions>
+              <execution>
+                <id>deploy-remote-jar</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>exec</goal>
+                </goals>
+                <configuration>
+                  <executable>python</executable>
+                  <workingDirectory>${project.basedir}</workingDirectory>
+                  <arguments>
+                    <argument>deploy-local.py</argument>
+                    <argument>${project.build.directory}/${project.build.finalName}.jar</argument>
+                  </arguments>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+
+    <profile>
+      <id>deploy-remote-python-unix</id>
+      <activation>
+        <os>
+          <family>unix</family>
+        </os>
+        <file>
+          <exists>${basedir}/deploy-local.py</exists>
+        </file>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>exec-maven-plugin</artifactId>
+            <version>3.5.0</version>
+            <executions>
+              <execution>
+                <id>deploy-remote-jar</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>exec</goal>
+                </goals>
+                <configuration>
+                  <executable>python3</executable>
+                  <workingDirectory>${project.basedir}</workingDirectory>
+                  <arguments>
+                    <argument>deploy-local.py</argument>
+                    <argument>${project.build.directory}/${project.build.finalName}.jar</argument>
+                  </arguments>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+
+    <!-- Backwards compatibility for existing Linux/WSL deploy-local.sh files. -->
+    <profile>
+      <id>deploy-remote-legacy-sh</id>
+      <activation>
+        <os>
+          <family>unix</family>
+        </os>
         <file>
           <exists>${basedir}/deploy-local.sh</exists>
         </file>
@@ -142,7 +212,7 @@
             <version>3.5.0</version>
             <executions>
               <execution>
-                <id>deploy-remote-jar</id>
+                <id>deploy-remote-legacy-jar</id>
                 <phase>package</phase>
                 <goals>
                   <goal>exec</goal>

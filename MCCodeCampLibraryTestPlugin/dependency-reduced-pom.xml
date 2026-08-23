@@ -86,7 +86,7 @@
       </build>
     </profile>
     <profile>
-      <id>deploy-remote</id>
+      <id>deploy-remote-python-windows</id>
       <build>
         <plugins>
           <plugin>
@@ -96,6 +96,64 @@
             <executions>
               <execution>
                 <id>deploy-remote-jar</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>exec</goal>
+                </goals>
+                <configuration>
+                  <executable>python</executable>
+                  <workingDirectory>${project.basedir}</workingDirectory>
+                  <arguments>
+                    <argument>deploy-local.py</argument>
+                    <argument>${project.build.directory}/${project.build.finalName}.jar</argument>
+                  </arguments>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
+      <id>deploy-remote-python-unix</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>exec-maven-plugin</artifactId>
+            <version>3.5.0</version>
+            <executions>
+              <execution>
+                <id>deploy-remote-jar</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>exec</goal>
+                </goals>
+                <configuration>
+                  <executable>python3</executable>
+                  <workingDirectory>${project.basedir}</workingDirectory>
+                  <arguments>
+                    <argument>deploy-local.py</argument>
+                    <argument>${project.build.directory}/${project.build.finalName}.jar</argument>
+                  </arguments>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
+      <id>deploy-remote-legacy-sh</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>exec-maven-plugin</artifactId>
+            <version>3.5.0</version>
+            <executions>
+              <execution>
+                <id>deploy-remote-legacy-jar</id>
                 <phase>package</phase>
                 <goals>
                   <goal>exec</goal>

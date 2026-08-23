@@ -2,6 +2,7 @@ package me.simoncrafter.mCCodeCampLibrary.obstical;
 
 import me.simoncrafter.CraftersDisplayLibrary.builder.StructureBuilder;
 import me.simoncrafter.CraftersDisplayLibrary.core.PositionObject;
+import me.simoncrafter.mCCodeCampLibrary.internal.registry.IBlockRegestryObject;
 import me.simoncrafter.mCCodeCampLibrary.obstical.events.OpenableObjectStateChangeEvent;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
@@ -146,6 +147,21 @@ public class AAnimatedOpenableObject extends AOpenableObject {
 
     public boolean isDisassemble() {
         return disassemble;
+    }
+
+    /**
+     * Releases the door's world attachments: disassembles the spawned door display (if
+     * any), then unregisters this object's event handlers. Idempotent; the instance
+     * stays inert and safe to reference after this call.
+     */
+    @Override
+    public void destroy() {
+        if (doorObject != null) {
+            StructureBuilder.disassembleOutOfObject(doorObject);
+            doorObject.remove();
+            doorObject = null;
+        }
+        super.destroy();
     }
 
     public void setDisassemble(boolean disassemble) {

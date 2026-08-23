@@ -96,6 +96,7 @@ public class MCCodeCampLib {
         Bukkit.getPluginManager().registerEvents(new Listeners(), plugin);
         Bukkit.getPluginManager().registerEvents(new ActivationListeners(), plugin);
         Bukkit.getPluginManager().registerEvents(new RegionActivationHandler(), plugin);
+        Bukkit.getPluginManager().registerEvents(blockMarkerRegistry, plugin);
         Bukkit.getPluginManager().registerEvents(new me.simoncrafter.CraftersChatDialogs.Listeners(), plugin);
     }
 

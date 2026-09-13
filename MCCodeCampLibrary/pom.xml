@@ -94,7 +94,7 @@
         <dependency>
             <groupId>com.github.Simon2009sch</groupId>
             <artifactId>CraftersDisplayLibrary</artifactId>
-            <version>v1.2.0b</version>
+            <version>v1.2.5</version>
         </dependency>
         <dependency>
             <groupId>com.github.Simon2009sch</groupId>
@@ -117,6 +117,11 @@
             <groupId>org.spongepowered</groupId>
             <artifactId>configurate-gson</artifactId>
             <version>4.2.0</version>
+        </dependency>
+        <dependency>
+            <groupId>net.kyori</groupId>
+            <artifactId>adventure-text-minimessage</artifactId>
+            <version>5.2.0</version>
         </dependency>
     </dependencies>
 

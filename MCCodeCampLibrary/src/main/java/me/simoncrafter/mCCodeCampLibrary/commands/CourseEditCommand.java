@@ -9,7 +9,6 @@ import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.questions.ConfigEditQ
 import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.questions.ConfigEditQuestion.ConfigEditQuestion;
 import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.questions.ConfigEditQuestion.ConfigEditValues.ConfigEditListSection;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.EditorItems;
-import me.simoncrafter.mCCodeCampLibrary.internal.editor.WorldMarkerEditor;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.hotbarmenue.HotbarItem;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.hotbarmenue.HotbarMenu;
 import me.simoncrafter.mCCodeCampLibrary.internal.events.BlockRegistryUpdateEvent;
@@ -46,7 +45,6 @@ import java.util.function.Consumer;
 
 public class CourseEditCommand implements TabExecutor, org.bukkit.command.CommandExecutor {
 
-    WorldMarkerEditor testEditor = null;
     Plugin plugin;
     private final Map<UUID, ConfigEditPlayerData> configEditPlayers = new HashMap<>();
     private final Map<UUID, Map<String, Object>> courseEditValues = new HashMap<>();
@@ -125,27 +123,7 @@ public class CourseEditCommand implements TabExecutor, org.bukkit.command.Comman
                     location.getX() + " " + location.getY() + " " + location.getZ() + ".", NamedTextColor.GREEN));
             return true;
         } else if (args.length == 1 && args[0].equalsIgnoreCase("editortest")) {
-            if (testEditor == null) {
-                List<WorldMarkerEditor.CreatableObject> objects = new ArrayList<>();
 
-                ItemStack buttonAddItem = new ItemStack(Material.OAK_BUTTON);
-                buttonAddItem.setData(DataComponentTypes.CUSTOM_NAME, Component.text("Add Button", NamedTextColor.GREEN));
-
-                objects.add(new WorldMarkerEditor.CreatableObject(buttonAddItem, e -> {
-                    if (e.getClickedBlock() == null) {
-                        return;
-                    }
-                    StringWithRulesInputAction inputAction = new StringWithRulesInputAction(p -> str -> {
-                        MCCodeCampLib.getBlockMarkerRegistry().createObject("button", str, e.getClickedBlock().getLocation());
-                    });
-
-                    inputAction.prompt(Component.text("Please input a id for this button"));
-                    inputAction.regexRule(".*");
-                    inputAction.run(e.getPlayer());
-                }));
-                testEditor = new WorldMarkerEditor(plugin, new ArrayList<>(), objects);
-            }
-            testEditor.addPlayer(player);
             return true;
         } else if (args.length == 1 && args[0].equalsIgnoreCase("configedit")) {
             sendEditQuestion(player);
@@ -210,11 +188,6 @@ public class CourseEditCommand implements TabExecutor, org.bukkit.command.Comman
                 "Course editor data captured in memory. Add persistence here next.",
                 NamedTextColor.GREEN));
     }
-
-    /**
-     * Creation hook used by the {@link WorldMarkerEditor.CreatableObject} action.
-     * Replace the body with construction of the real course/dialogue object.
-     */
     private void createCourseObject(Player player, Map<String, Object> values) {
         player.sendMessage(Component.text(
                 "Course object created from the edited values.",

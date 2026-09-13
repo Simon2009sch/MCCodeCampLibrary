@@ -109,7 +109,7 @@ public class BlockMarkerRegistry implements Listener {
 
         IBlockRegestryObject obj;
         try {
-            obj = objectType.createObject().call();
+            obj = objectType.getCreateObjectAction().call();
         } catch (Exception e) {
             PLUGIN_LOGGER.warning("Error with creating block marker object");
             return;
@@ -299,10 +299,17 @@ public class BlockMarkerRegistry implements Listener {
     }
 
     /**
-     * @return an unmodifiable view of the registered object type IDs.
+     * @return Returns an unmodifiable view of the registered object type IDs.
      */
     public Set<String> getObjectTypeIDs() {
         return Collections.unmodifiableSet(objectTypes.keySet());
+    }
+
+    /**
+     * @return Returns an unmodifiable copy of the registered object types
+     */
+    public Map<String, RegistryObjectType> getObjectTypes() {
+        return Collections.unmodifiableMap(objectTypes);
     }
 
     /**
@@ -329,7 +336,7 @@ public class BlockMarkerRegistry implements Listener {
 
         IBlockRegestryObject obj;
         try {
-            obj = objectType.createObject().call();
+            obj = objectType.getCreateObjectAction().call();
         } catch (Exception e) {
             PLUGIN_LOGGER.warning("Error creating block marker object of type \"" + typeID + "\". Error: " + e.getMessage());
             return null;

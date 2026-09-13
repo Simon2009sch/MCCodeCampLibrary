@@ -7,8 +7,12 @@ import me.simoncrafter.CraftersDisplayLibrary.core.PositionObject;
 import me.simoncrafter.CraftersDisplayLibrary.display.cube.CubeColorDisplay;
 import me.simoncrafter.CraftersDisplayLibrary.display.cube.CubeColorInformation;
 import me.simoncrafter.CraftersDisplayLibrary.display.panel.TextDisplay;
+import me.simoncrafter.CraftersDisplayLibrary.display.wireframecube.WireframeCubeColorDisplay;
+import me.simoncrafter.CraftersDisplayLibrary.display.wireframecube.WireframeCubeColorInformation;
 import me.simoncrafter.mCCodeCampLibrary.input.activation.event.playerBlockActivation.ButtonIDEvent;
+import me.simoncrafter.mCCodeCampLibrary.internal.editor.AEditor;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.IEditable;
+import me.simoncrafter.mCCodeCampLibrary.internal.editor.IEditorObjectDescriptor;
 import me.simoncrafter.mCCodeCampLibrary.internal.registry.IBlockRegestryObject;
 import me.simoncrafter.mCCodeCampLibrary.internal.registry.BlockMarkerRegistry;
 import me.simoncrafter.mCCodeCampLibrary.internal.registry.RegistryObjectType;
@@ -20,6 +24,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.block.data.BlockData;
+import org.bukkit.entity.Display;
 import org.bukkit.entity.Interaction;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -28,18 +33,23 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.plugin.Plugin;
+import org.jetbrains.annotations.NotNull;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
 
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
+import java.util.function.BiConsumer;
 
-public class ActivationButton implements IBlockRegestryObject, Listener, IEditable {
+public class ActivationButton implements IBlockRegestryObject, Listener, IEditable, IEditorObjectDescriptor {
 
     private Plugin plugin;
+
+    //editor object descriptor
+    private final Map<String, Component> DESCRIPTOR_MAP = Map.ofEntries(
+            Map.entry("description", Component.text("A button")),
+            Map.entry("displayname", Component.text("Button")));
 
     //object related
     private Location location;
@@ -57,9 +67,18 @@ public class ActivationButton implements IBlockRegestryObject, Listener, IEditab
     //editable related
     private CubeColorDisplay displayObject = null;
     private TextDisplay displayLabel = null;
+    private WireframeCubeColorDisplay displaySelection = null;
+    private boolean selectionDisplaySpawned = false;
+
+    private Set<Player> visibleToPlayers = new HashSet<>();
+    private Set<Player> selectedByPlayers = new HashSet<>();
+
+    private Map<UUID, BiConsumer<Player, UUID>> rightClickCallbacks = new HashMap<>();
+    private Map<UUID, BiConsumer<Player, UUID>> leftClickCallbacks = new HashMap<>();
 
     //configuration editing
     private Map<String, Object> configEditValues = null;
+
 
     @Override
     public void init(Plugin plugin, Location loc, String ID, RegistryObjectType objectType, ConfigurationNode config, UUID uuid, BlockMarkerRegistry registryInstance) {
@@ -86,6 +105,9 @@ public class ActivationButton implements IBlockRegestryObject, Listener, IEditab
 
         displayObject = CubeColorDisplay.create(loc.clone(), new Vector3f(1.01f, 1.01f, 1.01f), new Vector3f(), new Quaternionf(), new CubeColorInformation(Color.fromARGB(100, 150, 255, 0)));
         displayLabel = TextDisplay.create(loc.clone().add(0.5f, 0.5f, 0.5f), new Vector3f(1, 1, 1), new Vector3f(), new Quaternionf());
+        displaySelection = WireframeCubeColorDisplay.create(
+                loc.clone(), new Vector3f(1.05f, 1.05f, 1.05f), new Vector3f(), new Quaternionf(),
+                new WireframeCubeColorInformation(Color.YELLOW), true, 0.05f);
         displayLabel.setText(
                 Component.empty()
                         .append(Component.text("Button", NamedTextColor.GREEN, TextDecoration.BOLD))
@@ -179,6 +201,126 @@ public class ActivationButton implements IBlockRegestryObject, Listener, IEditab
     }
 
     @Override
+    public void showFor(Player player) {
+        if (visibleToPlayers.isEmpty() || displayObject == null || displayLabel == null || displaySelection == null) {
+            createDisplayEntities();
+        }
+        visibleToPlayers.add(player);
+        displayObject.showForPlayer(player);
+        if (selectedByPlayers.contains(player)) {
+            showSelectionFor(player);
+        }
+    }
+
+    private void showSelectionFor(Player player) {
+        if (!selectionDisplaySpawned) {
+            displaySelection.spawnDisplay();
+            selectionDisplaySpawned = true;
+        }
+        displaySelection.showForPlayer(player, true);
+    }
+
+    private void createDisplayEntities() {
+        deleteDisplayEntities();
+        displayObject = CubeColorDisplay.create(
+                location,
+                new Vector3f(1.01f, 1.01f, 1.01f),
+                new Quaternionf(),
+                new CubeColorInformation(Color.fromARGB(50, 0, 200, 50)), true);
+        displayLabel = TextDisplay.create(
+                location, new Vector3f(), new Vector3f(0.5f, 0.5f, 0.5f), new Quaternionf());
+        displayLabel.setBillboard(Display.Billboard.CENTER);
+        displayLabel.setSeeThrough(true);
+        displayLabel.setText(Component.text(getID()));
+        displayObject.addChild(displayLabel);
+
+        displaySelection = WireframeCubeColorDisplay.create(
+                location, new Vector3f(1.05f, 1.05f, 1.05f), new Vector3f(), new Quaternionf(),
+                new WireframeCubeColorInformation(Color.YELLOW), true, 0.05f);
+        selectionDisplaySpawned = false;
+
+        displayObject.hideByDefault(true);
+        displaySelection.hideByDefault(true);
+
+        for (Player p : visibleToPlayers) {
+            displayObject.showForPlayer(p);
+            if (selectedByPlayers.contains(p)) {
+                showSelectionFor(p);
+            }
+        }
+    }
+
+    private void deleteDisplayEntities() {
+        if (displayLabel != null) {
+            displayLabel.remove();
+            displayLabel = null;
+        }
+        if (displayObject != null) {
+            displayObject.remove();
+            displayObject = null;
+        }
+        if (displaySelection != null) {
+            displaySelection.remove();
+            displaySelection = null;
+        }
+        selectionDisplaySpawned = false;
+    }
+
+    @Override
+    public void hideFor(Player player) {
+        visibleToPlayers.remove(player);
+        selectedByPlayers.remove(player);
+        if (displayObject != null) {
+            displayObject.hideForPlayer(player);
+        }
+        if (displaySelection != null) {
+            displaySelection.hideForPlayer(player, true);
+        }
+        if (visibleToPlayers.isEmpty()) {
+            deleteDisplayEntities();
+        }
+    }
+
+    @Override
+    public void select(Player player) {
+        selectedByPlayers.add(player);
+        if (displaySelection == null) {
+            createDisplayEntities();
+        }
+        if (visibleToPlayers.contains(player)) {
+            showSelectionFor(player);
+        }
+    }
+
+    @Override
+    public void deselect(Player player) {
+        selectedByPlayers.remove(player);
+        if (displaySelection != null) {
+            displaySelection.hideForPlayer(player, true);
+        }
+    }
+
+    @Override
+    public void registerRightClickCallback(UUID editor, BiConsumer<Player, UUID> callback) {
+        rightClickCallbacks.put(editor, callback);
+    }
+
+    @Override
+    public void registerLeftClickCallback(UUID editor, BiConsumer<Player, UUID> callback) {
+        leftClickCallbacks.put(editor, callback);
+    }
+
+    @Override
+    public void unregisterLeftClickCallback(UUID editor) {
+        leftClickCallbacks.remove(editor);
+    }
+
+    @Override
+    public void unregisterRightClickCallback(UUID editor) {
+        rightClickCallbacks.remove(editor);
+    }
+
+    @Override
     public UUID getUUID() {
         return uuid;
     }
@@ -206,7 +348,7 @@ public class ActivationButton implements IBlockRegestryObject, Listener, IEditab
 
     @Override
     public String getTypeID() {
-        return objectType.typeID();
+        return objectType.getTypeID();
     }
 
     @EventHandler
@@ -219,61 +361,10 @@ public class ActivationButton implements IBlockRegestryObject, Listener, IEditab
         }
     }
 
-    @Override
-    public void onPlayerEnterEditor(Player player) {
 
-    }
 
-    @Override
-    public void onPlayerLeaveEditor(Player player) {
 
-    }
 
-    @Override
-    public Set<Interaction> getActivationEntityList() {
-        return Set.of();
-    }
-
-    @Override
-    public boolean isPlayerInEditingRage(Player player) {
-        return true;
-    }
-
-    @Override
-    public void onPlayerSelect(Player player) {
-        String syncKey = "edit_button_" + uuid;
-
-        ConfigEditQuestion editQuestion = getConfigEditQuestion()
-        .onReload(p -> {
-            // Reload: re-send the question with the (same) current config
-            ConfigEditQuestion reloaded = getConfigEditQuestion();
-            reloaded.show(p, syncKey);
-        });
-        editQuestion.show(player, syncKey);
-
-    }
-
-    @Override
-    public void onPlayerDeselect(Player player) {
-
-    }
-
-    @Override
-    public PositionObject getDisplay() {
-        return displayObject;
-    }
-
-    @Override
-    public void spawnDisplay() {
-        displayLabel.spawnDisplay();
-        displayObject.spawnDisplay();
-    }
-
-    @Override
-    public void despawnDisplay() {
-        displayObject.remove();
-        displayLabel.remove();
-    }
 
     /**
      * Releases the button's world attachments: removes the display entities, then
@@ -283,38 +374,14 @@ public class ActivationButton implements IBlockRegestryObject, Listener, IEditab
      */
     @Override
     public void destroy() {
-        if (displayObject != null) {
-            displayObject.remove();
-            displayObject = null;
-        }
-        if (displayLabel != null) {
-            displayLabel.remove();
-            displayLabel = null;
-        }
+        deleteDisplayEntities();
+        visibleToPlayers.clear();
+        selectedByPlayers.clear();
         IBlockRegestryObject.super.destroy();
     }
 
-
-    private ConfigEditQuestion getConfigEditQuestion() {
-        if (configEditValues == null) {
-            configEditValues = configToMap(getConfig());
-        }
-
-        ConfigEditData data = ConfigEditData.create(configEditValues);
-        ConfigEditQuestion question = ConfigEditQuestion.create(new ConfigEditPlayerData(), data)
-                .showSaveChangesButton(true)
-                .saveChangesAction(() -> {
-                    // Apply the edited values back into the object's config node
-                    try {
-                        config.set(configEditValues);
-                    } catch (SerializationException e) {
-                        plugin.getLogger().warning("Failed to serialize edited config for button \"" + ID + "\"");
-                    }
-                    registry.saveObject(this);
-                });
-
-        question.setRootSection(data.getNewRootSection());
-        return question;
+    @Override
+    public @NotNull Component getDisplayKey(String key) {
+        return DESCRIPTOR_MAP.get(key);
     }
-
 }

@@ -4,14 +4,15 @@ import me.simoncrafter.CraftersChatDialogs.InstanceData;
 import me.simoncrafter.CraftersDisplayLibrary.PluginHolder;
 import me.simoncrafter.CraftersDisplayLibrary.persistence.DisplayPersistence;
 import me.simoncrafter.mCCodeCampLibrary.input.activation.ActivationButton;
+import me.simoncrafter.mCCodeCampLibrary.internal.activation.StyledRegistryObjectType;
+import me.simoncrafter.mCCodeCampLibrary.internal.editor.EditorManager;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.hotbarmenue.HotbarMenu;
 import me.simoncrafter.mCCodeCampLibrary.internal.registry.BlockMarkerRegistry;
-import me.simoncrafter.mCCodeCampLibrary.internal.registry.RegistryObjectType;
 import me.simoncrafter.mCCodeCampLibrary.internal.Listeners;
 import me.simoncrafter.mCCodeCampLibrary.internal.activation.ActivationListeners;
 import me.simoncrafter.mCCodeCampLibrary.internal.activation.RegionActivationHandler;
 import me.simoncrafter.mCCodeCampLibrary.obstical.AOpenableObject;
-import me.simoncrafter.mCCodeCampLibrary.obstical.Door.PivotingDoor;
+import net.kyori.adventure.text.Component;
 import org.bukkit.*;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -19,6 +20,7 @@ import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
 
@@ -27,6 +29,7 @@ public class MCCodeCampLib {
     private static Plugin plugin;
     private static BlockMarkerRegistry blockMarkerRegistry;
     private static ItemsManager itemsManager;
+    private static EditorManager editorManager;
     private static long currentDisplayPluginIteration = 0;
 
     private static AOpenableObject door;
@@ -52,13 +55,23 @@ public class MCCodeCampLib {
         return plugin.getLogger();
     }
 
+    public static EditorManager getEditorManager() {
+        return editorManager;
+    }
+
     public static void init(@NotNull Plugin plugin) {
         if (MCCodeCampLib.plugin != null) {
             return;
         }
         MCCodeCampLib.plugin = plugin;
         MCCodeCampLib.blockMarkerRegistry = new BlockMarkerRegistry(plugin);
-        blockMarkerRegistry.registerObjectType("button", new RegistryObjectType("button", ActivationButton::new));
+        blockMarkerRegistry.registerObjectType(
+                "button",
+                new StyledRegistryObjectType(ActivationButton::new, "button", Map.ofEntries(
+                        Map.entry("displayname", Component.text("Button")),
+                        Map.entry("description", Component.text("Creates a new button usable in code"))
+                ))
+        );
         for (World w : Bukkit.getWorlds()) {
             for (Chunk c : w.getLoadedChunks()) {
                 blockMarkerRegistry.onChunkLoad(c);
@@ -68,6 +81,7 @@ public class MCCodeCampLib {
 
 
         MCCodeCampLib.itemsManager = new ItemsManager(plugin);
+        MCCodeCampLib.editorManager = new EditorManager(plugin);
         registerEventListeners(plugin);
         PluginHolder.setPlugin((JavaPlugin) plugin);
         InstanceData.setPlugin(plugin);

@@ -4,22 +4,22 @@ package me.simoncrafter.mCCodeCampLibrary.internal.editor;
 import org.jetbrains.annotations.NotNull;
 
 public class EditorFrame {
-    private final @NotNull Editor editor;
+    private final @NotNull AEditor editor;
     private IEditable selection = null;
 
-    public @NotNull Editor getEditor() {
+    @NotNull AEditor getEditor() {
         return editor;
     }
 
-    public IEditable getSelection() {
+    IEditable getSelection() {
         return selection;
     }
 
-    public void setSelection(IEditable selection) {
+    void setSelection(IEditable selection) {
         this.selection = selection;
     }
 
-    public EditorFrame(@NotNull Editor editor) throws IllegalArgumentException {
+    EditorFrame(@NotNull AEditor editor) throws IllegalArgumentException {
         if (editor == null) {
             throw new IllegalArgumentException("Editor frame was instantiated with a NULL editor!");
         }

@@ -16,6 +16,11 @@
         <option value="deploy-local-jar" />
       </list>
     </option>
+    <option name="disabledProfiles">
+      <list>
+        <option value="deploy-remote-python-windows" />
+      </list>
+    </option>
   </component>
   <component name="ProjectRootManager" version="2" languageLevel="JDK_25" project-jdk-name="openjdk-26" project-jdk-type="JavaSDK">
     <output url="file://$PROJECT_DIR$/out" />

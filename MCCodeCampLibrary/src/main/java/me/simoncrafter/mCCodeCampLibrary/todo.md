@@ -38,7 +38,7 @@ ___
   - [ ] Creating
   - [ ] Removing
 - [ ] Utilities
-  - [ ] Cooldowns
+  - [x] Cooldowns
 
 ___
 

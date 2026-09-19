@@ -73,8 +73,6 @@ public class ActivationButton implements IBlockRegestryObject, Listener, IEditab
     private Set<Player> visibleToPlayers = new HashSet<>();
     private Set<Player> selectedByPlayers = new HashSet<>();
 
-    private Map<UUID, BiConsumer<Player, UUID>> rightClickCallbacks = new HashMap<>();
-    private Map<UUID, BiConsumer<Player, UUID>> leftClickCallbacks = new HashMap<>();
 
     //configuration editing
     private Map<String, Object> configEditValues = null;
@@ -242,6 +240,9 @@ public class ActivationButton implements IBlockRegestryObject, Listener, IEditab
         displayObject.hideByDefault(true);
         displaySelection.hideByDefault(true);
 
+        displayLabel.spawnDisplay();
+        displayObject.spawnDisplay();
+
         for (Player p : visibleToPlayers) {
             displayObject.showForPlayer(p);
             if (selectedByPlayers.contains(p)) {
@@ -300,25 +301,6 @@ public class ActivationButton implements IBlockRegestryObject, Listener, IEditab
         }
     }
 
-    @Override
-    public void registerRightClickCallback(UUID editor, BiConsumer<Player, UUID> callback) {
-        rightClickCallbacks.put(editor, callback);
-    }
-
-    @Override
-    public void registerLeftClickCallback(UUID editor, BiConsumer<Player, UUID> callback) {
-        leftClickCallbacks.put(editor, callback);
-    }
-
-    @Override
-    public void unregisterLeftClickCallback(UUID editor) {
-        leftClickCallbacks.remove(editor);
-    }
-
-    @Override
-    public void unregisterRightClickCallback(UUID editor) {
-        rightClickCallbacks.remove(editor);
-    }
 
     @Override
     public UUID getUUID() {

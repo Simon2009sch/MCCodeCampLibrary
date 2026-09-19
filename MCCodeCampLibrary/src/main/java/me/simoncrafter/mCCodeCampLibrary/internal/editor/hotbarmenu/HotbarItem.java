@@ -1,4 +1,4 @@
-package me.simoncrafter.mCCodeCampLibrary.internal.editor.hotbarmenue;
+package me.simoncrafter.mCCodeCampLibrary.internal.editor.hotbarmenu;
 
 import io.papermc.paper.event.player.PrePlayerAttackEntityEvent;
 import org.apache.logging.log4j.util.TriConsumer;
@@ -6,13 +6,11 @@ import org.bukkit.Bukkit;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
-import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
-import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.persistence.PersistentDataType;

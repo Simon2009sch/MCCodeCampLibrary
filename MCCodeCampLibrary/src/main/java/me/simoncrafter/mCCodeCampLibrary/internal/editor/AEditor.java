@@ -2,16 +2,17 @@ package me.simoncrafter.mCCodeCampLibrary.internal.editor;
 
 import me.simoncrafter.CraftersChatDialogs.dialogs.def.AbstractQuestion;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.events.EditorTerminateEvent;
-import me.simoncrafter.mCCodeCampLibrary.internal.editor.hotbarmenue.HotbarMenu;
-import me.simoncrafter.mCCodeCampLibrary.utility.MCCodeCampLib;
+import me.simoncrafter.mCCodeCampLibrary.internal.editor.events.PlayerClickEditableObjectEvent;
+import me.simoncrafter.mCCodeCampLibrary.internal.editor.hotbarmenu.HotbarMenu;
+import me.simoncrafter.mCCodeCampLibrary.internal.registry.events.BlockRegistryUpdateEvent;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.Plugin;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 public abstract class AEditor implements Listener {
 
@@ -39,14 +40,20 @@ public abstract class AEditor implements Listener {
 
     public void setEditableObjects(Map<UUID, IEditable> editableObjects) {
         this.editableObjects = editableObjects;
-        editableObjects.forEach((u, e) -> {
-            registerCallbacksWithIEditable(e);
-        });
     }
 
     public void addEditableObject(IEditable editable) {
-        editableObjects.put(editable.getUUID(), editable);
-        registerCallbacksWithIEditable(editable);
+        IEditable previous = editableObjects.put(editable.getUUID(), editable);
+        if (previous == editable) return;
+        if (previous != null) players.forEach(previous::hideFor);
+        players.forEach(editable::showFor);
+    }
+
+    public boolean removeEditableObject(UUID uuid) {
+        IEditable removed = editableObjects.remove(uuid);
+        if (removed == null) return false;
+        players.forEach(removed::hideFor);
+        return true;
     }
 
     protected void join(Player player) {
@@ -82,21 +89,30 @@ public abstract class AEditor implements Listener {
         return new HashMap<>(editableObjects);
     }
 
-    private void registerCallbacksWithIEditable(IEditable e) {
-        e.registerLeftClickCallback(EDITOR_UUID, this::onLeftClick);
-        e.registerRightClickCallback(EDITOR_UUID, this::onRightClick);
+
+    protected abstract void onPlayerClickObjectEvent(PlayerClickEditableObjectEvent event);
+
+
+    @EventHandler
+    public void onEditorTerminate(EditorTerminateEvent event) {
+        if (event.getEditor() != this) return;
     }
 
-    private void unregisterCallbacksWithIEditable(IEditable e) {
-        e.unregisterLeftClickCallback(EDITOR_UUID);
-        e.unregisterRightClickCallback(EDITOR_UUID);
+    @EventHandler
+    public void onPlayerClickEditableObject(PlayerClickEditableObjectEvent event) {
+        if (!editableObjects.containsValue(event.getClicked())) {
+            return;
+        }
+        onPlayerClickObjectEvent(event);
     }
 
-    protected abstract void onLeftClick(Player player, UUID clicked);
-
-    protected abstract void onRightClick(Player player, UUID clicked);
-
-    public void terminate() {
-        new EditorTerminateEvent(this);
+    @EventHandler
+    public void onBlockRegistryUpdate(BlockRegistryUpdateEvent event) {
+        if (!(event.getRegistryObject() instanceof IEditable editable)) return;
+        if (event.getUpdateType() == BlockRegistryUpdateEvent.UpdateType.CREATE
+                || event.getUpdateType() == BlockRegistryUpdateEvent.UpdateType.LOAD) {
+            addEditableObject(editable);
+        }
     }
+
 }

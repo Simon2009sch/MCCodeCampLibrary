@@ -1,17 +1,14 @@
 package me.simoncrafter.mCCodeCampLibrary.commands;
 
-import io.papermc.paper.datacomponent.DataComponentTypes;
 import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.actions.CustomAction;
-import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.actions.InputActions.StringWithRulesInputAction;
 import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.buttons.Button;
 import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.questions.ConfigEditQuestion.ConfigEditData;
 import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.questions.ConfigEditQuestion.ConfigEditPlayerData;
 import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.questions.ConfigEditQuestion.ConfigEditQuestion;
 import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.questions.ConfigEditQuestion.ConfigEditValues.ConfigEditListSection;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.EditorItems;
-import me.simoncrafter.mCCodeCampLibrary.internal.editor.hotbarmenue.HotbarItem;
-import me.simoncrafter.mCCodeCampLibrary.internal.editor.hotbarmenue.HotbarMenu;
-import me.simoncrafter.mCCodeCampLibrary.internal.events.BlockRegistryUpdateEvent;
+import me.simoncrafter.mCCodeCampLibrary.internal.editor.hotbarmenu.HotbarItem;
+import me.simoncrafter.mCCodeCampLibrary.internal.editor.hotbarmenu.HotbarMenu;
 import me.simoncrafter.mCCodeCampLibrary.internal.registry.BlockMarkerRegistry;
 import me.simoncrafter.mCCodeCampLibrary.internal.registry.IBlockRegestryObject;
 import me.simoncrafter.mCCodeCampLibrary.utility.MCCodeCampLib;
@@ -19,19 +16,14 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
 import org.bukkit.block.Block;
 import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
 import org.bukkit.entity.Player;
-import org.bukkit.event.block.Action;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -67,7 +59,6 @@ public class CourseEditCommand implements TabExecutor, org.bukkit.command.Comman
             player.give(EditorItems.getRemove());
             return true;
         } else if (args.length == 1 && args[0].equalsIgnoreCase("reload")) {
-            new BlockRegistryUpdateEvent().callEvent();
             return true;
         } else if (args.length == 1 && args[0].equalsIgnoreCase("hotbar")) {
             Plugin plugin = MCCodeCampLib.unsafePluginGetDoNotUseThisOutsideOfTesting();
@@ -122,8 +113,13 @@ public class CourseEditCommand implements TabExecutor, org.bukkit.command.Comman
             player.sendMessage(Component.text("Created " + type + " \"" + id + "\" at " +
                     location.getX() + " " + location.getY() + " " + location.getZ() + ".", NamedTextColor.GREEN));
             return true;
+        } else if (args.length == 1 && args[0].equalsIgnoreCase("list")) {
+            listMarkers(player);
+            return true;
         } else if (args.length == 1 && args[0].equalsIgnoreCase("editortest")) {
-
+            if (!MCCodeCampLib.getEditorManager().setEditor(player, "mccodecamp:world-marker")) {
+                player.sendMessage(Component.text("World marker editor is unavailable.", NamedTextColor.RED));
+            }
             return true;
         } else if (args.length == 1 && args[0].equalsIgnoreCase("configedit")) {
             sendEditQuestion(player);
@@ -131,6 +127,27 @@ public class CourseEditCommand implements TabExecutor, org.bukkit.command.Comman
         }
 
         return false;
+    }
+
+    private void listMarkers(Player player) {
+        List<IBlockRegestryObject> markers = MCCodeCampLib.getBlockMarkerRegistry().getRegisteredObjects().stream()
+                .sorted(java.util.Comparator.comparing(IBlockRegestryObject::getTypeID)
+                        .thenComparing(IBlockRegestryObject::getID))
+                .toList();
+
+        if (markers.isEmpty()) {
+            player.sendMessage(Component.text("No markers are currently loaded.", NamedTextColor.YELLOW));
+            return;
+        }
+
+        player.sendMessage(Component.text("Loaded markers (" + markers.size() + "):", NamedTextColor.GOLD));
+        for (IBlockRegestryObject marker : markers) {
+            Location location = marker.getLocation();
+            player.sendMessage(Component.text("- " + marker.getTypeID() + " \"" + marker.getID() + "\" at "
+                    + location.getWorld().getName() + " "
+                    + location.getBlockX() + " " + location.getBlockY() + " " + location.getBlockZ(),
+                    NamedTextColor.GRAY));
+        }
     }
 
     private void sendEditQuestion(Player player) {
@@ -271,7 +288,7 @@ public class CourseEditCommand implements TabExecutor, org.bukkit.command.Comman
     @Override
     public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String @NotNull [] args) {
         if (args.length == 1) {
-            return matchingPrefix(List.of("getItems", "reload", "hotbar", "add", "editortest", "configedit"), args[0]);
+            return matchingPrefix(List.of("getItems", "reload", "hotbar", "add", "list", "editortest", "configedit"), args[0]);
         }
 
         if (args[0].equalsIgnoreCase("add")) {

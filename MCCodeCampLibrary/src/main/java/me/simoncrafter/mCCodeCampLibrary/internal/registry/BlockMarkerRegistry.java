@@ -1,6 +1,8 @@
 package me.simoncrafter.mCCodeCampLibrary.internal.registry;
 
 import org.bukkit.*;
+import me.simoncrafter.mCCodeCampLibrary.internal.registry.events.BlockRegistryUpdateEvent;
+import static me.simoncrafter.mCCodeCampLibrary.internal.registry.events.BlockRegistryUpdateEvent.UpdateType.*;
 import org.bukkit.block.Block;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.HandlerList;
@@ -117,6 +119,7 @@ public class BlockMarkerRegistry implements Listener {
 
         obj.init(PLUGIN, location, id, objectType, node.node("config"), uuid, this);
         putObject(type, id, obj);
+        new BlockRegistryUpdateEvent(LOAD, obj).callEvent();
     }
 
     private @Nullable Location readLocation(ConfigurationNode locationNode) {
@@ -194,7 +197,12 @@ public class BlockMarkerRegistry implements Listener {
         removeObject(obj);
     }
 
-    private @Nullable IBlockRegestryObject findRegisteredObject(UUID uuid) {
+    /** Snapshot of the currently loaded registry objects. */
+    public List<IBlockRegestryObject> getRegisteredObjects() {
+        return registeredObjects.values().stream().flatMap(objects -> objects.values().stream()).toList();
+    }
+
+    public @Nullable IBlockRegestryObject findRegisteredObject(UUID uuid) {
         for (Map<String, IBlockRegestryObject> objectsOfType : registeredObjects.values()) {
             for (IBlockRegestryObject obj : objectsOfType.values()) {
                 if (obj.getUUID().equals(uuid)) {
@@ -203,6 +211,10 @@ public class BlockMarkerRegistry implements Listener {
             }
         }
         return null;
+    }
+
+    public @Nullable IBlockRegestryObject findRegisteredObject(String type, String id) {
+        return registeredObjects.getOrDefault(type, new HashMap<>()).get(id);
     }
 
     private record ChunkObjectMatch(ConfigurationNode root, ConfigurationNode node) {}
@@ -250,44 +262,30 @@ public class BlockMarkerRegistry implements Listener {
 
     @EventHandler
     public void onChunkUnloadEvent(ChunkUnloadEvent event) {
-        Chunk chunk = event.getChunk();
-        String worldName = chunk.getWorld().getName();
-        int chunkX = chunk.getX();
-        int chunkZ = chunk.getZ();
-
-        for (Map<String, IBlockRegestryObject> objectsOfType : registeredObjects.values()) {
-            objectsOfType.entrySet().removeIf(entry -> {
-                Location loc = entry.getValue().getLocation();
-                // Coordinate comparison only — Location.getChunk() would force-load the
-                // chunk that is currently unloading.
-                boolean inChunk = loc.getWorld().getName().equals(worldName)
-                        && (loc.getBlockX() >> 4) == chunkX
-                        && (loc.getBlockZ() >> 4) == chunkZ;
-                if (inChunk) {
-                    entry.getValue().destroy();
-                }
-                return inChunk;
-            });
-        }
+        onChunkUnload(event.getChunk());
     }
 
     public void onChunkUnload(Chunk chunk) {
         String worldName = chunk.getWorld().getName();
         int chunkX = chunk.getX();
         int chunkZ = chunk.getZ();
-
+        List<IBlockRegestryObject> unloaded = new ArrayList<>();
         for (Map<String, IBlockRegestryObject> objectsOfType : registeredObjects.values()) {
             objectsOfType.entrySet().removeIf(entry -> {
                 Location loc = entry.getValue().getLocation();
+                // Never force-load a chunk from its unload handler.
                 boolean inChunk = loc.getWorld().getName().equals(worldName)
                         && (loc.getBlockX() >> 4) == chunkX
                         && (loc.getBlockZ() >> 4) == chunkZ;
-                if (inChunk) {
-                    entry.getValue().destroy();
-                }
+                if (inChunk) unloaded.add(entry.getValue());
                 return inChunk;
             });
         }
+        // Publish callbacks only after eviction, outside map iteration.
+        unloaded.forEach(obj -> {
+            new BlockRegistryUpdateEvent(UNLOAD, obj).callEvent();
+            obj.destroy();
+        });
     }
 
     public void onChunkLoad(Chunk chunk) {
@@ -328,6 +326,7 @@ public class BlockMarkerRegistry implements Listener {
      * object failed to construct.
      */
     public @Nullable IBlockRegestryObject createObject(String typeID, String id, Location location) {
+        if (id == null || id.isBlank() || hasObject(typeID, id)) return null;
         RegistryObjectType objectType = objectTypes.get(typeID);
         if (objectType == null) {
             PLUGIN_LOGGER.warning("Cannot create marker: unrecognized type \"" + typeID + "\"");
@@ -345,6 +344,7 @@ public class BlockMarkerRegistry implements Listener {
         obj.init(PLUGIN, location, id, objectType, BasicConfigurationNode.root(), UUID.randomUUID(), this);
         putObject(typeID, id, obj);
         appendObjectNode(obj);
+        new BlockRegistryUpdateEvent(CREATE, obj).callEvent();
         return obj;
     }
 
@@ -384,8 +384,10 @@ public class BlockMarkerRegistry implements Listener {
         if (objectsOfType != null) {
             IBlockRegestryObject removed = objectsOfType.remove(id);
             if (removed != null) {
+                new BlockRegistryUpdateEvent(DELETE, removed).callEvent();
                 removed.destroy();
             }
         }
     }
+
 }

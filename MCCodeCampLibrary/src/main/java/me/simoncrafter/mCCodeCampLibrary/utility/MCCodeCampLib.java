@@ -4,9 +4,10 @@ import me.simoncrafter.CraftersChatDialogs.InstanceData;
 import me.simoncrafter.CraftersDisplayLibrary.PluginHolder;
 import me.simoncrafter.CraftersDisplayLibrary.persistence.DisplayPersistence;
 import me.simoncrafter.mCCodeCampLibrary.input.activation.ActivationButton;
+import me.simoncrafter.mCCodeCampLibrary.input.editor.WorldMarkerEditor;
 import me.simoncrafter.mCCodeCampLibrary.internal.activation.StyledRegistryObjectType;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.EditorManager;
-import me.simoncrafter.mCCodeCampLibrary.internal.editor.hotbarmenue.HotbarMenu;
+import me.simoncrafter.mCCodeCampLibrary.internal.editor.hotbarmenu.HotbarMenu;
 import me.simoncrafter.mCCodeCampLibrary.internal.registry.BlockMarkerRegistry;
 import me.simoncrafter.mCCodeCampLibrary.internal.Listeners;
 import me.simoncrafter.mCCodeCampLibrary.internal.activation.ActivationListeners;
@@ -82,6 +83,9 @@ public class MCCodeCampLib {
 
         MCCodeCampLib.itemsManager = new ItemsManager(plugin);
         MCCodeCampLib.editorManager = new EditorManager(plugin);
+        if (!editorManager.registerEditor("mccodecamp:world-marker", new WorldMarkerEditor(plugin))) {
+            throw new IllegalStateException("Could not register the world-marker editor");
+        }
         registerEventListeners(plugin);
         PluginHolder.setPlugin((JavaPlugin) plugin);
         InstanceData.setPlugin(plugin);

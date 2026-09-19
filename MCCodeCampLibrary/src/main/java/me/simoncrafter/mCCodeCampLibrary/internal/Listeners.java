@@ -17,7 +17,7 @@ public class Listeners implements Listener {
 
     @EventHandler
     public void onChunkLoad(ChunkLoadEvent event) {
-        MCCodeCampLib.getBlockMarkerRegistry().onChunkLoad(event.getChunk());
+        // Registry owns its chunk load/unload listeners.
         List<Long> timestamps = DisplayPersistence.listIterationTimestamps(event.getChunk());
         for (long l : timestamps) {
             if (l < MCCodeCampLib.getCurrentDisplayPluginIteration()) {
@@ -26,10 +26,7 @@ public class Listeners implements Listener {
         }
     }
 
-    @EventHandler
-    public void onChunkUnload(ChunkUnloadEvent event) {
-        MCCodeCampLib.getBlockMarkerRegistry().onChunkUnload(event.getChunk());
-    }
+
 
     @EventHandler
     public void onBlockBreak(BlockBreakEvent event) {

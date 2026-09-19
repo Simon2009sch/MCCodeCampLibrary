@@ -45,31 +45,6 @@ public interface IEditable {
      */
     void deselect(Player player);
 
-    /**
-     * Registers a callback for when a player rightclicks this editable object. The editors should handle clicking behavior contextually
-     * @param editor The editor requesting to register a callback
-     * @param callback The method to call when the object was rightclicked
-     */
-    void registerRightClickCallback(UUID editor, BiConsumer<Player, UUID> callback);
-
-    /**
-     * Registers a callback for when a player leftclicks this editable object. The editors should handle clicking behavior contextually
-     * @param editor The editor requesting to register a callback
-     * @param callback The method to call when the object was leftclicked
-     */
-    void registerLeftClickCallback(UUID editor, BiConsumer<Player, UUID> callback);
-
-    /**
-     * Unregistering leftclick callback
-     * @param editor The editor that should be no longer receiving callbacks
-     */
-    void unregisterLeftClickCallback(UUID editor);
-
-    /**
-     * Unregistering rightclick callback
-     * @param editor The editor that should be no longer receiving callbacks
-     */
-    void unregisterRightClickCallback(UUID editor);
 
     /**
      * Returns the UUID of this object. Can be just for editing or just a general uuid of this object

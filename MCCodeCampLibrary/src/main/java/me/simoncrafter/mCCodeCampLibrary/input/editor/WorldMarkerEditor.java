@@ -1,103 +1,162 @@
 package me.simoncrafter.mCCodeCampLibrary.input.editor;
 
 import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.actions.CustomAction;
-import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.actions.InputActions.StringInputAction;
 import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.actions.InputActions.StringWithRulesInputAction;
 import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.buttons.Button;
-import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.buttons.SelectionButton;
 import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.questions.GenericQuestion;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.AEditor;
+import me.simoncrafter.mCCodeCampLibrary.internal.editor.IEditable;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.IEditorObjectDescriptor;
+import me.simoncrafter.mCCodeCampLibrary.internal.editor.events.PlayerClickEditableObjectEvent;
+import me.simoncrafter.mCCodeCampLibrary.internal.registry.IBlockRegestryObject;
+import me.simoncrafter.mCCodeCampLibrary.internal.registry.events.BlockRegistryUpdateEvent;
 import me.simoncrafter.mCCodeCampLibrary.utility.MCCodeCampLib;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.FluidCollisionMode;
 import org.bukkit.Location;
-import org.bukkit.Material;
 import org.bukkit.block.Block;
-import org.bukkit.entity.Creature;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
 import org.bukkit.plugin.Plugin;
 
-import java.util.*;
+import java.util.Comparator;
+import java.util.UUID;
+import java.util.function.Consumer;
 
 public class WorldMarkerEditor extends AEditor {
-
-    private final static Component EDITOR_HEADLINE = Component.text("World Marker Editor", NamedTextColor.GOLD, TextDecoration.BOLD).appendNewline();
-
-
+    private static final Component EDITOR_HEADLINE = Component.text("World Marker Editor", NamedTextColor.GOLD, TextDecoration.BOLD).appendNewline();
 
     public WorldMarkerEditor(Plugin plugin) {
         super(plugin);
-        question = GenericQuestion.create(EDITOR_HEADLINE
-                        .append(MiniMessage.miniMessage()
-                        .deserialize("<grey>You can edit the world with your hotbar or by <white>choosing one of these options:<reset>")))
-                .addButton(Button.create()
-                        .text(Component.text("[Create]", NamedTextColor.GREEN, TextDecoration.BOLD))
-                        .addAction(CustomAction.create(this::createNewMarkerDialog))
-                )
-                .addButton(Button.create()
-                        .text(Component.text("[Edit]", NamedTextColor.GOLD, TextDecoration.BOLD))
-                        .setDisabled(true)
-                )
-                .addButton(Button.create()
-                        .text(Component.text("[Delete]", NamedTextColor.RED, TextDecoration.BOLD))
-                        .setDisabled(true)
-                );
     }
 
     @Override
-    protected void onLeftClick(Player player, UUID clicked) {
-
+    protected void join(Player player) {
+        // Editors without viewers do not listen for registry events; reacquire loaded instances.
+        var markers = MCCodeCampLib.getBlockMarkerRegistry().getRegisteredObjects();
+        for (UUID uuid : getEditableObjects().keySet()) {
+            if (markers.stream().noneMatch(marker -> marker.getUUID().equals(uuid))) removeEditableObject(uuid);
+        }
+        for (IBlockRegestryObject marker : markers) {
+            if (marker instanceof IEditable editable) addEditableObject(editable);
+        }
+        super.join(player);
+        showDialog(player, buildHomeDialog());
     }
 
     @Override
-    protected void onRightClick(Player player, UUID clicked) {
+    protected void onPlayerClickObjectEvent(PlayerClickEditableObjectEvent event) {
+        // Marker editing is intentionally left to the object-specific editor.
+    }
 
+    @Override
+    @EventHandler
+    public void onBlockRegistryUpdate(BlockRegistryUpdateEvent event) {
+        super.onBlockRegistryUpdate(event);
+    }
+
+    private boolean isActive(Player player) {
+        return MCCodeCampLib.getEditorManager().getPlayersCurrentEditor(player) == this;
+    }
+
+    private GenericQuestion dialog(Component message) {
+        return GenericQuestion.create(EDITOR_HEADLINE.append(message));
+    }
+
+    private Button actionButton(String label, NamedTextColor color, Consumer<Player> action) {
+        return Button.create().text(Component.text("[" + label + "]", color, TextDecoration.BOLD))
+                .addAction(CustomAction.create(player -> {
+                    if (isActive(player)) action.accept(player);
+                }));
+    }
+
+    private void showDialog(Player player, GenericQuestion dialog) {
+        // Never reuse a question or its one-shot buttons between players.
+        dialog.show(player, getUUID() + ":" + player.getUniqueId());
+    }
+
+    private void showHome(Player player) {
+        if (isActive(player)) showDialog(player, buildHomeDialog());
+    }
+
+    private GenericQuestion buildHomeDialog() {
+        return dialog(Component.text("Choose an option:", NamedTextColor.GRAY))
+                .addButton(actionButton("Create", NamedTextColor.GREEN, this::createNewMarkerDialog))
+                .addButton(Button.create().text(Component.text("[Edit]", NamedTextColor.GOLD, TextDecoration.BOLD)).setDisabled(true))
+                .addButton(actionButton("Delete", NamedTextColor.RED, player -> showDialog(player, buildDeleteMenu())));
     }
 
     private void createNewMarkerDialog(Player player) {
-
-        Map<Player, String> playerInputs = new HashMap<>();
-
-        CustomAction returnToHomeQuestion = CustomAction.create(question::show);
-        GenericQuestion markerCreationDialog = GenericQuestion.create(
-                EDITOR_HEADLINE.append(MiniMessage.miniMessage().deserialize("<white>Select the type of marker you want to create:")));
-        MCCodeCampLib.getBlockMarkerRegistry().getObjectTypes().forEach((id, obj) -> {
-            Component text;
-            if (obj instanceof IEditorObjectDescriptor desc) {
-                text = desc.getDescription();
-            } else {
-                text = Component.text(id);
-            }
-
-            StringWithRulesInputAction idInputAction = StringWithRulesInputAction.create(p -> s -> playerInputs.put(p, s))
-                    .regexRule("^[a-zA-Z0-9_]*$")
-                    .prompt(EDITOR_HEADLINE.append(Component.text("Please input the ID of the new ")
-                                    .append(text))
-                            .appendNewline()
-                            .append(Component.text("Can contain numbers, letters(upper and lowercase) and Underscores", NamedTextColor.GRAY))
-                            .appendNewline()
-                            .append(Component.text("The block you are looking at at the point of sending will be chosen as the new location of the button. If no block is looked at, your players feet will be taken.", NamedTextColor.GRAY))
-                    );
-            idInputAction.addReTryAction(CustomAction.create(idInputAction::run))
-                    .addCancelAction(returnToHomeQuestion)
-                    .addTimeoutAction(returnToHomeQuestion)
-                    .addSuccessAction(CustomAction.create(p -> {
-                        Block targetBlock = player.getTargetBlockExact(4, FluidCollisionMode.NEVER);
-                        Location loc = targetBlock == null ? player.getLocation().getBlock().getLocation() : targetBlock.getLocation();
-                        MCCodeCampLib.getBlockMarkerRegistry().createObject(id, playerInputs.get(player), loc);
-                    }));
-
-            markerCreationDialog.addButton(Button.create()
-                    .text(Component.text("[")
-                            .append(text)
-                            .append(Component.text("]")))
-                    .addAction(idInputAction));
+        GenericQuestion menu = dialog(Component.text("Select the type of marker you want to create:"));
+        MCCodeCampLib.getBlockMarkerRegistry().getObjectTypes().forEach((id, type) -> {
+            Component name = type instanceof IEditorObjectDescriptor descriptor ? descriptor.getDisplayName() : Component.text(id);
+            menu.addButton(Button.create().text(Component.text("[").append(name).append(Component.text("]")))
+                    .addAction(CustomAction.create(p -> {
+                        if (isActive(p)) buildMarkerIdInput(id, name).run(p);
+                    })));
         });
-
+        menu.addButton(actionButton("Cancel", NamedTextColor.GRAY, this::showHome));
+        showDialog(player, menu);
     }
 
+    private StringWithRulesInputAction buildMarkerIdInput(String type, Component name) {
+        StringWithRulesInputAction input = StringWithRulesInputAction.create(player -> id -> {
+            if (!isActive(player)) return;
+            if (!id.matches("[a-zA-Z0-9_]+")) return;
+            var registry = MCCodeCampLib.getBlockMarkerRegistry();
+            if (registry.hasObject(type, id)) {
+                player.sendMessage(Component.text("An object of this type already uses that ID.", NamedTextColor.RED));
+                buildMarkerIdInput(type, name).run(player);
+                return;
+            }
+            Block target = player.getTargetBlockExact(4, FluidCollisionMode.NEVER);
+            Location location = target == null ? player.getLocation().getBlock().getLocation() : target.getLocation();
+            IBlockRegestryObject created = registry.createObject(type, id, location);
+            showHome(player);
+            player.sendMessage(Component.text(created == null ? "Could not create marker." : "Added new object: " + id,
+                    created == null ? NamedTextColor.RED : NamedTextColor.GREEN));
+        }).regexRule("^[a-zA-Z0-9_]+$")
+                .prompt(EDITOR_HEADLINE.append(Component.text("Please input the ID of the new ")).append(name)
+                        .appendNewline().append(Component.text("Use letters, numbers and underscores. Look at a block within four blocks; otherwise your feet are used. Type cancel to return.", NamedTextColor.GRAY)));
+        input.addReTryAction(CustomAction.create(player -> {
+                    if (isActive(player)) buildMarkerIdInput(type, name).run(player);
+                }))
+                .addCancelAction(CustomAction.create(this::showHome))
+                .addTimeoutAction(CustomAction.create(this::showHome));
+        input.reTry(true);
+        return input;
+    }
+
+    private GenericQuestion buildDeleteMenu() {
+        GenericQuestion menu = dialog(Component.text("Select a loaded marker to delete:"));
+        MCCodeCampLib.getBlockMarkerRegistry().getRegisteredObjects().stream()
+                .sorted(Comparator.comparing(IBlockRegestryObject::getTypeID).thenComparing(IBlockRegestryObject::getID))
+                .forEach(marker -> menu.addButton(actionButton(marker.getTypeID() + ": " + marker.getID(), NamedTextColor.RED,
+                        player -> showDialog(player, buildDeleteConfirmation(marker.getUUID())))));
+        menu.addButton(actionButton("Cancel", NamedTextColor.GRAY, this::showHome));
+        return menu;
+    }
+
+    private GenericQuestion buildDeleteConfirmation(UUID uuid) {
+        var marker = MCCodeCampLib.getBlockMarkerRegistry().findRegisteredObject(uuid);
+        String label = marker == null ? uuid.toString() : marker.getTypeID() + ": " + marker.getID();
+        return dialog(Component.text("Permanently delete " + label + "?", NamedTextColor.RED))
+                .addButton(actionButton("Confirm delete", NamedTextColor.RED, player -> {
+                    var registry = MCCodeCampLib.getBlockMarkerRegistry();
+                    // Resolve by UUID again: an unloaded/deleted marker must not delete a replacement with the same ID.
+                    if (registry.findRegisteredObject(uuid) == null) {
+                        showHome(player);
+                        player.sendMessage(Component.text("This marker is no longer loaded.", NamedTextColor.RED));
+                        return;
+                    }
+                    registry.removeObject(uuid);
+                    showHome(player);
+                    boolean removed = registry.findRegisteredObject(uuid) == null;
+                    player.sendMessage(Component.text(removed ? "Deleted marker." : "Could not delete marker.",
+                            removed ? NamedTextColor.GREEN : NamedTextColor.RED));
+                }))
+                .addButton(actionButton("Cancel", NamedTextColor.GRAY, this::showHome));
+    }
 }

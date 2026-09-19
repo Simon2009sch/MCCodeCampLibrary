@@ -94,7 +94,7 @@
         <dependency>
             <groupId>com.github.Simon2009sch</groupId>
             <artifactId>CraftersDisplayLibrary</artifactId>
-            <version>v1.2.5</version>
+            <version>v1.2.5a</version>
         </dependency>
         <dependency>
             <groupId>com.github.Simon2009sch</groupId>
@@ -121,7 +121,27 @@
         <dependency>
             <groupId>net.kyori</groupId>
             <artifactId>adventure-text-minimessage</artifactId>
-            <version>5.2.0</version>
+            <!-- Match the Adventure version supplied by Paper 1.21.11. -->
+            <version>4.26.1</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.11.4</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockbukkit.mockbukkit</groupId>
+            <artifactId>mockbukkit-v1.21</artifactId>
+            <version>4.116.3</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>5.18.0</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 

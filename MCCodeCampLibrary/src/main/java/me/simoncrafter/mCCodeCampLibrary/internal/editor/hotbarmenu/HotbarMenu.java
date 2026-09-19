@@ -1,4 +1,4 @@
-package me.simoncrafter.mCCodeCampLibrary.internal.editor.hotbarmenue;
+package me.simoncrafter.mCCodeCampLibrary.internal.editor.hotbarmenu;
 
 import io.papermc.paper.event.player.PlayerPickBlockEvent;
 import org.bukkit.Bukkit;
@@ -13,7 +13,6 @@ import org.bukkit.event.inventory.*;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
-import org.bukkit.event.server.PluginDisableEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.persistence.PersistentDataType;

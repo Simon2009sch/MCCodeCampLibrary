@@ -26,9 +26,10 @@ public class EditorSession {
     }
 
     AEditor pop() {
-        EditorFrame frame = editorStack.pop();
+        EditorFrame frame = editorStack.poll();
+        if (frame == null) return null;
+        if (frame.getSelection() != null) frame.getSelection().deselect(player);
         frame.getEditor().leave(player);
-        frame.getSelection().deselect(player);
 
         if (!editorStack.isEmpty()) {
             IEditable sel = editorStack.peek().getSelection();
@@ -45,7 +46,10 @@ public class EditorSession {
      * @param editor The editor the player is put in. If Null will make player leave editor
      */
     void setEditor(AEditor editor) {
-        editorStack.forEach(editorFrame -> editorFrame.getEditor().leave(player));
+        editorStack.forEach(frame -> {
+            if (frame.getSelection() != null) frame.getSelection().deselect(player);
+            frame.getEditor().leave(player);
+        });
         editorStack.clear();
         if (editor != null) {
             editorStack.push(new EditorFrame(editor));
@@ -75,6 +79,7 @@ public class EditorSession {
         EditorFrame frame = editorStack.peek();
         if (frame == null) return false;
         if (frame.getEditor().getEditableObjects().containsValue(editable)) {
+            if (frame.getSelection() != null) frame.getSelection().deselect(player);
             frame.setSelection(editable);
             editable.select(player);
             return true;
@@ -84,7 +89,7 @@ public class EditorSession {
 
     boolean deselect() {
         EditorFrame frame = editorStack.peek();
-        if (frame.getEditor() == null || frame.getSelection() == null) return false;
+        if (frame == null || frame.getSelection() == null) return false;
         frame.getSelection().deselect(player);
         frame.setSelection(null);
         return true;
@@ -103,13 +108,23 @@ public class EditorSession {
         }
         int popCount = 0;
         while (editorStack.peek().getEditor() != parent) {
-            editorStack.pop().getEditor().leave(player);
+            pop();
             popCount++;
         }
         if (child != null) put(child);
         return popCount;
     }
 
+
+    void onEditableUnload(java.util.UUID uuid) {
+        for (EditorFrame frame : editorStack) {
+            IEditable selected = frame.getSelection();
+            if (selected != null && selected.getUUID().equals(uuid)) {
+                selected.deselect(player);
+                frame.setSelection(null);
+            }
+        }
+    }
 
     void onEditorTerminate(AEditor editor) {
         if (editorStack.stream().noneMatch(f -> f.getEditor()==editor)) {

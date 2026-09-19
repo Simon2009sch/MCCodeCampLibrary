@@ -183,7 +183,7 @@ public abstract class AOpenableObject implements IOpenable, IBlockRegestryObject
 
     @Override
     public String getTypeID() {
-        return objectType.typeID();
+        return objectType.getTypeID();
     }
 
     protected void setState(OpenableState state) {

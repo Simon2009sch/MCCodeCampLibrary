@@ -1,98 +1,199 @@
 package me.simoncrafter.mCCodeCampLibrary.internal.editor;
 
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.events.EditorTerminateEvent;
+import me.simoncrafter.mCCodeCampLibrary.internal.registry.events.BlockRegistryUpdateEvent;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.Plugin;
+import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
 
 /**
- * Manages sessions.
+ * Owns registered editor instances and the editor session of each online player.
+ * Editors are addressed by a stable string ID; callers do not need to retain an
+ * editor instance after registration.
  */
 public class EditorManager implements Listener {
 
-    private final Plugin plugin;
-
-    private Map<Player, EditorSession> sessions = new HashMap<>();
-
+    private final Map<UUID, EditorSession> sessions = new HashMap<>();
+    private final Map<String, AEditor> editorsById = new HashMap<>();
+    private final Map<AEditor, String> idsByEditor = new IdentityHashMap<>();
+    private final Map<AEditor, UUID> editorOwners = new IdentityHashMap<>();
 
     public EditorManager(Plugin plugin) {
-        this.plugin = plugin;
+        Objects.requireNonNull(plugin, "plugin");
         Bukkit.getPluginManager().registerEvents(this, plugin);
     }
 
-    public void put(Player player, AEditor editor) {
-        sessions.get(player).put(editor);
-    }
-
-    public AEditor pop(Player player) {
-        return sessions.get(player).pop();
+    /**
+     * Registers a general-purpose editor. The ID must be unique for this manager.
+     */
+    public boolean registerEditor(String id, AEditor editor) {
+        return registerEditor(id, editor, null);
     }
 
     /**
-     * Moves the player to the editor while safely removing them in all the ones they where in the child-parent tree.
-     * @param player The player in question
-     * @param parent The parent of the editor you want to go to.
-     * @param child The target editor you want to go to. If null stays in parent editor
-     * @return Returns the number of steps it went outside of an editor
+     * Registers an editor which is owned by one editable object.
+     * The manager terminates this editor when that object is deleted or unloaded.
      */
-    public int goTo(Player player, AEditor parent, AEditor child) {
-        return sessions.get(player).goTo(parent, child);
+    public boolean registerEditor(String id, AEditor editor, @Nullable IEditable owner) {
+        if (id == null || id.isBlank() || editor == null
+                || editorsById.containsKey(id) || idsByEditor.containsKey(editor)) {
+            return false;
+        }
+        editorsById.put(id, editor);
+        idsByEditor.put(editor, id);
+        if (owner != null) editorOwners.put(editor, owner.getUUID());
+        return true;
     }
 
-    public boolean select(Player player, IEditable editable) {
-        return sessions.get(player).select(editable);
+    @Nullable
+    public AEditor getEditor(String id) {
+        return id == null ? null : editorsById.get(id);
     }
 
-    public boolean deselect(Player player) {
-        return sessions.get(player).deselect();
+    @Nullable
+    public String getEditorId(AEditor editor) {
+        return editor == null ? null : idsByEditor.get(editor);
+    }
+
+    public boolean put(Player player, String editorId) {
+        AEditor editor = getEditor(editorId);
+        if (editor == null) return false;
+        sessionFor(player).put(editor);
+        return true;
+    }
+
+    public boolean put(Player player, AEditor editor) {
+        String editorId = getEditorId(editor);
+        return editorId != null && put(player, editorId);
+    }
+
+    @Nullable
+    public AEditor pop(Player player) {
+        EditorSession session = sessions.get(player.getUniqueId());
+        return session == null ? null : session.pop();
+    }
+
+    public boolean setEditor(Player player, String editorId) {
+        AEditor editor = getEditor(editorId);
+        if (editor == null) return false;
+        sessionFor(player).setEditor(editor);
+        return true;
+    }
+
+    public boolean setEditor(Player player, AEditor editor) {
+        String editorId = getEditorId(editor);
+        return editorId != null && setEditor(player, editorId);
     }
 
     public void leaveEditor(Player player) {
-        setEditor(player, null);
-    }
-
-    public void setEditor(Player player, AEditor editor) {
-        sessions.get(player).setEditor(editor);
+        EditorSession session = sessions.remove(player.getUniqueId());
+        if (session != null) session.setEditor(null);
     }
 
     /**
-     * Returns the current selection of the player
-     * @param player The player in question
-     * @return The IEditable object. Null if player has nothing selected
+     * Unwinds to {@code parentId}, then optionally enters {@code childId}.
+     * A null child ID intentionally means "remain in the parent".
      */
+    public int goTo(Player player, String parentId, @Nullable String childId) {
+        AEditor parent = getEditor(parentId);
+        AEditor child = childId == null ? null : getEditor(childId);
+        if (parent == null || (childId != null && child == null)) return 0;
+        return sessionFor(player).goTo(parent, child);
+    }
+
+    public int goTo(Player player, AEditor parent, @Nullable AEditor child) {
+        String parentId = getEditorId(parent);
+        String childId = child == null ? null : getEditorId(child);
+        return parentId == null || (child != null && childId == null) ? 0 : goTo(player, parentId, childId);
+    }
+
+    public boolean select(Player player, IEditable editable) {
+        EditorSession session = sessions.get(player.getUniqueId());
+        return session != null && session.select(editable);
+    }
+
+    public boolean deselect(Player player) {
+        EditorSession session = sessions.get(player.getUniqueId());
+        return session != null && session.deselect();
+    }
+
+    @Nullable
     public IEditable getPlayerSelection(Player player) {
-        return sessions.get(player).getPlayerSelection();
+        EditorSession session = sessions.get(player.getUniqueId());
+        return session == null ? null : session.getPlayerSelection();
     }
 
+    @Nullable
     public AEditor getPlayersCurrentEditor(Player player) {
-        return sessions.get(player).getCurrentEditor();
+        EditorSession session = sessions.get(player.getUniqueId());
+        return session == null ? null : session.getCurrentEditor();
     }
 
-    /**
-     * Returns the selection of a player in a specific editor
-     * @param player The player in question
-     * @param editor The editor to search in
-     * @return Returns the IEditable object. If editor isn't in players stack or player hasn't selected anything returns NULL
-     */
+    @Nullable
     public IEditable getPlayerSelection(Player player, AEditor editor) {
-        return sessions.get(player).getPlayerSelection(editor);
+        EditorSession session = sessions.get(player.getUniqueId());
+        return session == null ? null : session.getPlayerSelection(editor);
+    }
+
+    /** Terminates a registered editor and removes it from every player session. */
+    public boolean terminateEditor(String editorId) {
+        AEditor editor = getEditor(editorId);
+        if (editor == null) return false;
+        editorsById.remove(editorId);
+        idsByEditor.remove(editor);
+        editorOwners.remove(editor);
+        sessions.values().forEach(session -> session.onEditorTerminate(editor));
+        new EditorTerminateEvent(editor).callEvent();
+        return true;
+    }
+
+    public boolean terminateEditor(AEditor editor) {
+        String editorId = getEditorId(editor);
+        return editorId != null && terminateEditor(editorId);
+    }
+
+    private EditorSession sessionFor(Player player) {
+        return sessions.computeIfAbsent(player.getUniqueId(), ignored -> new EditorSession(player));
     }
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
-        sessions.get(event.getPlayer()).setEditor(null);
+        leaveEditor(event.getPlayer());
+    }
+
+    /**
+     * The registry publishes lifecycle events. A deleted/unloaded editable is
+     * removed from all editor views, deselected for all players, and terminates
+     * any object-specific editor registered with it as owner.
+     */
+    @EventHandler
+    public void onBlockRegistryUpdate(BlockRegistryUpdateEvent event) {
+        if (event.getUpdateType() != BlockRegistryUpdateEvent.UpdateType.UNLOAD
+                && event.getUpdateType() != BlockRegistryUpdateEvent.UpdateType.DELETE) {
+            return;
+        }
+
+        UUID editableId = event.getRegistryObject().getUUID();
+        sessions.values().forEach(session -> session.onEditableUnload(editableId));
+        new ArrayList<>(editorsById.values()).forEach(editor -> editor.removeEditableObject(editableId));
+        new ArrayList<>(editorOwners.entrySet()).forEach(entry -> {
+            if (entry.getValue().equals(editableId)) terminateEditor(entry.getKey());
+        });
     }
 
     @EventHandler
     public void onEditorTerminate(EditorTerminateEvent event) {
-        sessions.forEach((p, s) -> {
-            s.onEditorTerminate(event.getEditor());
-        });
+        sessions.values().forEach(session -> session.onEditorTerminate(event.getEditor()));
     }
 }

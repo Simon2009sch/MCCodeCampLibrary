@@ -85,6 +85,7 @@ public class EditorManager implements Listener {
     }
 
     public boolean setEditor(Player player, String editorId) {
+        if (editorId.isEmpty()) sessionFor(player).setEditor(null);
         AEditor editor = getEditor(editorId);
         if (editor == null) return false;
         sessionFor(player).setEditor(editor);

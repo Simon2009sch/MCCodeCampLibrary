@@ -9,10 +9,12 @@ import me.simoncrafter.CraftersDisplayLibrary.display.cube.CubeColorInformation;
 import me.simoncrafter.CraftersDisplayLibrary.display.panel.TextDisplay;
 import me.simoncrafter.CraftersDisplayLibrary.display.wireframecube.WireframeCubeColorDisplay;
 import me.simoncrafter.CraftersDisplayLibrary.display.wireframecube.WireframeCubeColorInformation;
+import me.simoncrafter.CraftersDisplayLibrary.entity.InteractionBox;
 import me.simoncrafter.mCCodeCampLibrary.input.activation.event.playerBlockActivation.ButtonIDEvent;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.AEditor;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.IEditable;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.IEditorObjectDescriptor;
+import me.simoncrafter.mCCodeCampLibrary.internal.editor.events.PlayerClickEditableObjectEvent;
 import me.simoncrafter.mCCodeCampLibrary.internal.registry.IBlockRegestryObject;
 import me.simoncrafter.mCCodeCampLibrary.internal.registry.BlockMarkerRegistry;
 import me.simoncrafter.mCCodeCampLibrary.internal.registry.RegistryObjectType;
@@ -30,6 +32,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.player.PlayerInteractAtEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.plugin.Plugin;
@@ -67,6 +70,7 @@ public class ActivationButton implements IBlockRegestryObject, Listener, IEditab
     //editable related
     private CubeColorDisplay displayObject = null;
     private TextDisplay displayLabel = null;
+    private InteractionBox interactionBox = null;
     private WireframeCubeColorDisplay displaySelection = null;
     private boolean selectionDisplaySpawned = false;
 
@@ -101,22 +105,6 @@ public class ActivationButton implements IBlockRegestryObject, Listener, IEditab
             cooldown = new Cooldown(0);
         }
 
-        displayObject = CubeColorDisplay.create(loc.clone(), new Vector3f(1.01f, 1.01f, 1.01f), new Vector3f(), new Quaternionf(), new CubeColorInformation(Color.fromARGB(100, 150, 255, 0)));
-        displayLabel = TextDisplay.create(loc.clone().add(0.5f, 0.5f, 0.5f), new Vector3f(1, 1, 1), new Vector3f(), new Quaternionf());
-        displaySelection = WireframeCubeColorDisplay.create(
-                loc.clone(), new Vector3f(1.05f, 1.05f, 1.05f), new Vector3f(), new Quaternionf(),
-                new WireframeCubeColorInformation(Color.YELLOW), true, 0.05f);
-        displayLabel.setText(
-                Component.empty()
-                        .append(Component.text("Button", NamedTextColor.GREEN, TextDecoration.BOLD))
-                        .appendNewline()
-                        .append(Component.empty().decoration(TextDecoration.BOLD, false))
-                        .append(Component.text("ID: ", NamedTextColor.WHITE, TextDecoration.BOLD))
-                        .append(Component.text(ID))
-        );
-        displayObject.addChild(displayLabel);
-        displayObject.setSeeThrough(true);
-        displayLabel.setSeeThrough(true);
     }
 
     public BlockData getBlockData() {
@@ -205,6 +193,8 @@ public class ActivationButton implements IBlockRegestryObject, Listener, IEditab
         }
         visibleToPlayers.add(player);
         displayObject.showForPlayer(player);
+        displayLabel.showForPlayer(player);
+        interactionBox.showForPlayer(player);
         if (selectedByPlayers.contains(player)) {
             showSelectionFor(player);
         }
@@ -220,20 +210,25 @@ public class ActivationButton implements IBlockRegestryObject, Listener, IEditab
 
     private void createDisplayEntities() {
         deleteDisplayEntities();
+        Location loc = location.clone().add(0.5, 0.5, 0.5);
         displayObject = CubeColorDisplay.create(
-                location,
+                loc,
                 new Vector3f(1.01f, 1.01f, 1.01f),
                 new Quaternionf(),
                 new CubeColorInformation(Color.fromARGB(50, 0, 200, 50)), true);
         displayLabel = TextDisplay.create(
-                location, new Vector3f(), new Vector3f(0.5f, 0.5f, 0.5f), new Quaternionf());
+                loc, new Vector3f(1,1,1), new Vector3f(), new Quaternionf());
         displayLabel.setBillboard(Display.Billboard.CENTER);
         displayLabel.setSeeThrough(true);
         displayLabel.setText(Component.text(getID()));
         displayObject.addChild(displayLabel);
 
+        interactionBox = InteractionBox.create(loc.clone(), new Vector3f(1, 1, 1), new Vector3f(), plugin);
+        displayObject.addChild(interactionBox);
+        interactionBox.hideByDefault(true);
+
         displaySelection = WireframeCubeColorDisplay.create(
-                location, new Vector3f(1.05f, 1.05f, 1.05f), new Vector3f(), new Quaternionf(),
+                location.clone().add(0.5, 0.5, 0.5), new Vector3f(1.05f, 1.05f, 1.05f), new Vector3f(), new Quaternionf(),
                 new WireframeCubeColorInformation(Color.YELLOW), true, 0.05f);
         selectionDisplaySpawned = false;
 
@@ -242,6 +237,9 @@ public class ActivationButton implements IBlockRegestryObject, Listener, IEditab
 
         displayLabel.spawnDisplay();
         displayObject.spawnDisplay();
+        interactionBox.spawnEntity();
+
+        interactionBox.setOnRightClick(this::onRightClickDisplay);
 
         for (Player p : visibleToPlayers) {
             displayObject.showForPlayer(p);
@@ -249,6 +247,10 @@ public class ActivationButton implements IBlockRegestryObject, Listener, IEditab
                 showSelectionFor(p);
             }
         }
+    }
+
+    private void onRightClickDisplay(PlayerInteractAtEntityEvent event) {
+        new PlayerClickEditableObjectEvent(event.getPlayer(), this, PlayerClickEditableObjectEvent.ClickType.RIGHT).callEvent();
     }
 
     private void deleteDisplayEntities() {
@@ -273,6 +275,9 @@ public class ActivationButton implements IBlockRegestryObject, Listener, IEditab
         selectedByPlayers.remove(player);
         if (displayObject != null) {
             displayObject.hideForPlayer(player);
+        }
+        if (displayLabel != null) {
+            displayLabel.hideForPlayer(player);
         }
         if (displaySelection != null) {
             displaySelection.hideForPlayer(player, true);

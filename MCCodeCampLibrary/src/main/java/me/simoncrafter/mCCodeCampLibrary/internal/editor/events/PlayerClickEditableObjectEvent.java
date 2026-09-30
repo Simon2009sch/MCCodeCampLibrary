@@ -18,10 +18,9 @@ public class PlayerClickEditableObjectEvent extends PlayerEvent {
     private IEditable clicked;
     private ClickType clickType;
 
-    public PlayerClickEditableObjectEvent(@NotNull Player player, IEditable clicked, Player player1, ClickType clickType) {
+    public PlayerClickEditableObjectEvent(@NotNull Player player, IEditable clicked, ClickType clickType) {
         super(player);
         this.clicked = clicked;
-        this.player = player1;
         this.clickType = clickType;
     }
 

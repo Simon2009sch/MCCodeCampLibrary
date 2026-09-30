@@ -1,11 +1,14 @@
 package me.simoncrafter.mCCodeCampLibrary.commands;
 
+import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.actions.CommandAction;
 import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.actions.CustomAction;
 import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.buttons.Button;
+import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.buttons.YesButton;
 import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.questions.ConfigEditQuestion.ConfigEditData;
 import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.questions.ConfigEditQuestion.ConfigEditPlayerData;
 import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.questions.ConfigEditQuestion.ConfigEditQuestion;
 import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.questions.ConfigEditQuestion.ConfigEditValues.ConfigEditListSection;
+import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.questions.GenericQuestion;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.EditorItems;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.hotbarmenu.HotbarItem;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.hotbarmenu.HotbarMenu;
@@ -124,6 +127,19 @@ public class CourseEditCommand implements TabExecutor, org.bukkit.command.Comman
         } else if (args.length == 1 && args[0].equalsIgnoreCase("configedit")) {
             sendEditQuestion(player);
             return true;
+        } else if (args[0].equalsIgnoreCase("test")) {
+            GenericQuestion q = GenericQuestion.create(Component.text("Dies ist eine testfage. Wähle eine option!"))
+                    .addButton(
+                            Button.create()
+                                    .text(Component.text("[Coole Option]"))
+                                    .addAction(CommandAction.create("say hi"))
+                    )
+                    .addButton(YesButton.create().addAction(CustomAction.create(p -> {
+                        p.teleport(p.getLocation().clone().add(0,1,0));
+                    })))
+                    .addExitButton();
+
+            q.show((Player) sender);
         }
 
         return false;
@@ -288,7 +304,7 @@ public class CourseEditCommand implements TabExecutor, org.bukkit.command.Comman
     @Override
     public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String @NotNull [] args) {
         if (args.length == 1) {
-            return matchingPrefix(List.of("getItems", "reload", "hotbar", "add", "list", "editortest", "configedit"), args[0]);
+            return matchingPrefix(List.of("getItems", "reload", "hotbar", "add", "list", "editortest", "configedit", "test"), args[0]);
         }
 
         if (args[0].equalsIgnoreCase("add")) {

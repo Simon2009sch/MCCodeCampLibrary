@@ -1,5 +1,7 @@
 package me.simoncrafter.mCCodeCampLibrary.input.editor;
 
+import me.simoncrafter.CraftersChatDialogs.dialogs.def.AbstractQuestion;
+import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.actions.ClearCharAction;
 import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.actions.CustomAction;
 import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.actions.InputActions.StringWithRulesInputAction;
 import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.buttons.Button;
@@ -14,6 +16,7 @@ import me.simoncrafter.mCCodeCampLibrary.utility.MCCodeCampLib;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import org.bukkit.Bukkit;
 import org.bukkit.FluidCollisionMode;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
@@ -47,9 +50,23 @@ public class WorldMarkerEditor extends AEditor {
     }
 
     @Override
+    protected void leave(Player player) {
+        ClearCharAction.create().run(player);
+        super.leave(player);
+    }
+
+    @Override
     protected void onPlayerClickObjectEvent(PlayerClickEditableObjectEvent event) {
+        Player player = event.getPlayer();
+        if (MCCodeCampLib.getEditorManager().getPlayerSelection(player) != event.getClicked()) {
+            MCCodeCampLib.getEditorManager().select(player, event.getClicked());
+        } else {
+            MCCodeCampLib.getEditorManager().deselect(player);
+        }
         // Marker editing is intentionally left to the object-specific editor.
     }
+
+
 
     @Override
     @EventHandler
@@ -85,7 +102,8 @@ public class WorldMarkerEditor extends AEditor {
         return dialog(Component.text("Choose an option:", NamedTextColor.GRAY))
                 .addButton(actionButton("Create", NamedTextColor.GREEN, this::createNewMarkerDialog))
                 .addButton(Button.create().text(Component.text("[Edit]", NamedTextColor.GOLD, TextDecoration.BOLD)).setDisabled(true))
-                .addButton(actionButton("Delete", NamedTextColor.RED, player -> showDialog(player, buildDeleteMenu())));
+                .addButton(actionButton("Delete", NamedTextColor.RED, player -> showDialog(player, buildDeleteMenu())))
+                .addButton(buildExitButton());
     }
 
     private void createNewMarkerDialog(Player player) {
@@ -144,19 +162,37 @@ public class WorldMarkerEditor extends AEditor {
         String label = marker == null ? uuid.toString() : marker.getTypeID() + ": " + marker.getID();
         return dialog(Component.text("Permanently delete " + label + "?", NamedTextColor.RED))
                 .addButton(actionButton("Confirm delete", NamedTextColor.RED, player -> {
-                    var registry = MCCodeCampLib.getBlockMarkerRegistry();
-                    // Resolve by UUID again: an unloaded/deleted marker must not delete a replacement with the same ID.
-                    if (registry.findRegisteredObject(uuid) == null) {
-                        showHome(player);
-                        player.sendMessage(Component.text("This marker is no longer loaded.", NamedTextColor.RED));
-                        return;
-                    }
-                    registry.removeObject(uuid);
-                    showHome(player);
-                    boolean removed = registry.findRegisteredObject(uuid) == null;
-                    player.sendMessage(Component.text(removed ? "Deleted marker." : "Could not delete marker.",
-                            removed ? NamedTextColor.GREEN : NamedTextColor.RED));
+                    removeObject(player, uuid);
                 }))
                 .addButton(actionButton("Cancel", NamedTextColor.GRAY, this::showHome));
     }
+
+    private Button buildExitButton() {
+        return Button.create()
+                .text(Component.text("[Exit]", NamedTextColor.RED))
+                .addAction(CustomAction.create(p -> {
+                    exitPlayer(p);
+                }));
+    }
+
+    private void removeObject(Player player, UUID uuid) {
+        var registry = MCCodeCampLib.getBlockMarkerRegistry();
+        // Resolve by UUID again: an unloaded/deleted marker must not delete a replacement with the same ID.
+        if (registry.findRegisteredObject(uuid) == null) {
+            showHome(player);
+            player.sendMessage(Component.text("This marker is no longer loaded.", NamedTextColor.RED));
+            return;
+        }
+        registry.removeObject(uuid);
+        showHome(player);
+        boolean removed = registry.findRegisteredObject(uuid) == null;
+        player.sendMessage(Component.text(removed ? "Deleted marker." : "Could not delete marker.",
+                removed ? NamedTextColor.GREEN : NamedTextColor.RED));
+    }
+
+    private void exitPlayer(Player player) {
+        MCCodeCampLib.getEditorManager().leaveEditor(player);
+    }
+
+
 }

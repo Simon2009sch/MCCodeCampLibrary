@@ -5,6 +5,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -116,7 +117,7 @@ public class EditorSession {
     }
 
 
-    void onEditableUnload(java.util.UUID uuid) {
+    void onEditableUnload(UUID uuid) {
         for (EditorFrame frame : editorStack) {
             IEditable selected = frame.getSelection();
             if (selected != null && selected.getUUID().equals(uuid)) {
@@ -124,6 +125,10 @@ public class EditorSession {
                 frame.setSelection(null);
             }
         }
+    }
+
+    boolean doesStackContain(AEditor editor) {
+        return editorStack.stream().anyMatch(f -> f.getEditor() == editor);
     }
 
     void onEditorTerminate(AEditor editor) {
@@ -134,6 +139,22 @@ public class EditorSession {
             pop();
         }
         pop(); // pop the terminated editor as well
+    }
+
+    boolean setDialogPath(String path) {
+        if (editorStack.peek() == null) {
+            return false;
+        }
+        EditorFrame frame = editorStack.peek();
+        frame.setDialogPath(path);
+        frame.getEditor().displayDialog(Player player, String path);
+        return true;
+    }
+
+    String getDialogPath() {
+        EditorFrame frame = editorStack.peek();
+        if (frame == null) return "";
+        return frame.getDialogPath();
     }
 
 }

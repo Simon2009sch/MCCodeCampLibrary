@@ -1,6 +1,7 @@
 package me.simoncrafter.mCCodeCampLibrary.internal.editor;
 
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.events.EditorTerminateEvent;
+import me.simoncrafter.mCCodeCampLibrary.internal.editor.events.PlayerRequestEditorNavigationEvent;
 import me.simoncrafter.mCCodeCampLibrary.internal.registry.events.BlockRegistryUpdateEvent;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -196,5 +197,22 @@ public class EditorManager implements Listener {
     @EventHandler
     public void onEditorTerminate(EditorTerminateEvent event) {
         sessions.values().forEach(session -> session.onEditorTerminate(event.getEditor()));
+    }
+
+    @EventHandler
+    public void onPlayerRequestEditorNavigation(PlayerRequestEditorNavigationEvent event) {
+        Player player = event.getPlayer();
+        AEditor requestedEditor = event.getRequestedEditor();
+        AEditor currentEditor = event.getCurrentEditor();
+
+        if (currentEditor == null && requestedEditor != null) {
+            put(player, event.getRequestedEditor());
+        } else if (currentEditor != null && requestedEditor != null) {
+            goTo(player, currentEditor, requestedEditor);
+        }
+
+        if (event.getRequestedPath() != null) {
+            sessionFor(player).setDialogPath()
+        }
     }
 }

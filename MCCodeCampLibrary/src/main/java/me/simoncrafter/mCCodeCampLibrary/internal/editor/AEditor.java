@@ -5,6 +5,9 @@ import me.simoncrafter.mCCodeCampLibrary.internal.editor.events.EditorTerminateE
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.events.PlayerClickEditableObjectEvent;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.hotbarmenu.HotbarMenu;
 import me.simoncrafter.mCCodeCampLibrary.internal.registry.events.BlockRegistryUpdateEvent;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -73,6 +76,8 @@ public abstract class AEditor implements Listener {
         players.remove(player);
         editableObjects.forEach((u, e) -> e.hideFor(player));
 
+        player.sendMessage(Component.text("THIS EDITOR IS DISABLED. IF SOME BUTTONS STILL WORK, IT IS A BUG. PLEASE REPORT", NamedTextColor.RED, TextDecoration.BOLD).append(Component.text("\n".repeat(100))));
+
         // on last player
         if (players.isEmpty()) {
             HandlerList.unregisterAll(this);
@@ -114,5 +119,11 @@ public abstract class AEditor implements Listener {
             addEditableObject(editable);
         }
     }
+
+    protected Plugin getPlugin() {
+        return plugin;
+    }
+
+    public abstract void displayDialog(Player player, String path);
 
 }

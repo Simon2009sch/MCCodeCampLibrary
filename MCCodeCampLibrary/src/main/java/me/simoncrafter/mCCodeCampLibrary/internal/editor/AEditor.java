@@ -76,8 +76,6 @@ public abstract class AEditor implements Listener {
         players.remove(player);
         editableObjects.forEach((u, e) -> e.hideFor(player));
 
-        player.sendMessage(Component.text("THIS EDITOR IS DISABLED. IF SOME BUTTONS STILL WORK, IT IS A BUG. PLEASE REPORT", NamedTextColor.RED, TextDecoration.BOLD).append(Component.text("\n".repeat(100))));
-
         // on last player
         if (players.isEmpty()) {
             HandlerList.unregisterAll(this);

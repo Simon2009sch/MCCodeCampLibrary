@@ -5,9 +5,13 @@ import me.simoncrafter.mCCodeCampLibrary.internal.editor.*;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.events.PlayerClickEditableObjectEvent;
 import me.simoncrafter.mCCodeCampLibrary.utility.MCCodeCampLib;
 import org.bukkit.Location;
+import org.bukkit.entity.Player;
 import org.bukkit.event.world.ChunkUnloadEvent;
 import org.junit.jupiter.api.Test;
 import org.mockbukkit.mockbukkit.MockBukkit;
+
+import java.util.Map;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -36,6 +40,7 @@ class EditorRegistryIntegrationTest {
             assertTrue(manager.select(one, marker));
             AEditor child = new AEditor(plugin) {
                 protected void onPlayerClickObjectEvent(PlayerClickEditableObjectEvent event) {}
+                public void displayDialog(Player player, String path, Map<String, Object> context) {}
             };
             manager.registerEditor("owned", child, marker);
             manager.put(one, child);

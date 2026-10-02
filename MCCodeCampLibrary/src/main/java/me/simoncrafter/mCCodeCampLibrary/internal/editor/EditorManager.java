@@ -205,14 +205,13 @@ public class EditorManager implements Listener {
         AEditor requestedEditor = event.getRequestedEditor();
         AEditor currentEditor = event.getCurrentEditor();
 
-        if (currentEditor == null && requestedEditor != null) {
+        if (currentEditor == null && requestedEditor != null && getPlayersCurrentEditor(player) != requestedEditor) {
             put(player, event.getRequestedEditor());
-        } else if (currentEditor != null && requestedEditor != null) {
-            goTo(player, currentEditor, requestedEditor);
         }
 
         if (event.getRequestedPath() != null) {
             sessionFor(player).setDialogPath(event.getRequestedPath(), event.getEventContextMap());
         }
+        player.sendActionBar(event.getRequestedPath());
     }
 }

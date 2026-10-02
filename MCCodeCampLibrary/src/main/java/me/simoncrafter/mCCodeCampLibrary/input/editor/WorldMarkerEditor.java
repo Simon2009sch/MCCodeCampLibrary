@@ -1,25 +1,29 @@
 package me.simoncrafter.mCCodeCampLibrary.input.editor;
 
-import io.papermc.paper.datacomponent.DataComponentType;
-import io.papermc.paper.datacomponent.DataComponentTypes;
-import me.simoncrafter.CraftersChatDialogs.dialogs.def.AbstractQuestion;
-import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.actions.ClearCharAction;
+import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.DisplayOptions.DisplayOption;
+import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.DisplayOptions.DisplayOptions;
 import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.actions.CustomAction;
+import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.actions.InputActions.LocationInputAction;
 import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.actions.InputActions.StringWithRulesInputAction;
 import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.buttons.Button;
 import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.questions.GenericQuestion;
+import me.simoncrafter.mCCodeCampLibrary.internal.activation.StyledRegistryObjectType;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.AEditor;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.IEditable;
-import me.simoncrafter.mCCodeCampLibrary.internal.editor.IEditorObjectDescriptor;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.events.PlayerClickEditableObjectEvent;
+import me.simoncrafter.mCCodeCampLibrary.internal.editor.events.PlayerRequestEditorNavigationEvent;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.hotbarmenu.HotbarItem;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.hotbarmenu.HotbarMenu;
 import me.simoncrafter.mCCodeCampLibrary.internal.registry.IBlockRegestryObject;
+import me.simoncrafter.mCCodeCampLibrary.internal.registry.RegistryObjectType;
 import me.simoncrafter.mCCodeCampLibrary.internal.registry.events.BlockRegistryUpdateEvent;
 import me.simoncrafter.mCCodeCampLibrary.utility.MCCodeCampLib;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.Style;
+import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.FluidCollisionMode;
 import org.bukkit.Location;
@@ -27,22 +31,42 @@ import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
-import org.bukkit.event.block.Action;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.Plugin;
 
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.Consumer;
 
 public class WorldMarkerEditor extends AEditor {
-    private static final Component EDITOR_HEADLINE = Component.text("World Marker Editor", NamedTextColor.GOLD, TextDecoration.BOLD).appendNewline();
+    private static final Component EDITOR_HEADLINE = Component.text("World Marker Editor", NamedTextColor.GOLD, TextDecoration.BOLD).style(Style.style().build()).appendNewline();
+    private static final DisplayOption DISPLAY_OPTION = new DisplayOption(DisplayOptions.ColorPalettes.GREEN_ISH, DisplayOptions.SoundOptions.DEFAULT);
+
+    private static final String DIALOG_TYPE_SELECTOR = "type_selector";
+    private static final String DIALOG_OBJECT_SELECTOR = "object_selector";
+    private static final String DIALOG_OBJECT_DELETION = "object_deletion";
+    private static final String DIALOG_ID_INPUT = "id_input";
+    private static final String DIALOG_GROUP_LOCATION_INPUT = "location_input";
+    private static final String DIALOG_LOCATION_INPUT_SELECTION = DIALOG_GROUP_LOCATION_INPUT + "_selection";
+    private static final String DIALOG_LOCATION_INPUT_TYPING = DIALOG_GROUP_LOCATION_INPUT + "_typing";
+
 
     public WorldMarkerEditor(Plugin plugin) {
         super(plugin);
+        hotbarMenu = new HotbarMenu(plugin);
+        hotbarMenu.setItemAt(0, new HotbarItem(plugin, new ItemStack(Material.SUNFLOWER))
+                .addBlockClickAction(event -> {
+                    Map<String, Object> context = new HashMap<>();
+                    context.put("purpose", "object_creation");
+                    context.put(DIALOG_TYPE_SELECTOR + "_result", "button");
+
+                    // Air clicks deliberately omit the location. The normal
+                    // location-selection dialog will then be shown later.
+                    if (event.getClickedBlock() != null) {
+                        context.put("generic_inputted_location", event.getClickedBlock().getLocation());
+                    }
+                    navigate(event.getPlayer(), DIALOG_ID_INPUT, context);
+                }));
     }
 
     @Override
@@ -56,7 +80,6 @@ public class WorldMarkerEditor extends AEditor {
             if (marker instanceof IEditable editable) addEditableObject(editable);
         }
         super.join(player);
-        showDialog(player, buildHomeDialog());
     }
 
     @Override
@@ -83,7 +106,7 @@ public class WorldMarkerEditor extends AEditor {
         super.onBlockRegistryUpdate(event);
     }
 
-    private boolean isActive(Player player) {
+    private boolean inInThisEditor(Player player) {
         return MCCodeCampLib.getEditorManager().getPlayersCurrentEditor(player) == this;
     }
 
@@ -91,10 +114,10 @@ public class WorldMarkerEditor extends AEditor {
         return GenericQuestion.create(EDITOR_HEADLINE.append(message));
     }
 
-    private Button actionButton(String label, NamedTextColor color, Consumer<Player> action) {
-        return Button.create().text(Component.text("[" + label + "]", color, TextDecoration.BOLD))
+    private Button actionButton(String label, TextColor color, Consumer<Player> action) {
+        return Button.create().text(Component.text("[" + label + "]", color))
                 .addAction(CustomAction.create(player -> {
-                    if (isActive(player)) action.accept(player);
+                    if (inInThisEditor(player)) action.accept(player);
                 }));
     }
 
@@ -103,124 +126,6 @@ public class WorldMarkerEditor extends AEditor {
         dialog.show(player, getUUID() + ":" + player.getUniqueId());
     }
 
-    private void showHome(Player player) {
-        if (isActive(player)) showDialog(player, buildHomeDialog());
-    }
-
-    private GenericQuestion buildHomeDialog() {
-        return dialog(Component.text("Choose an option:", NamedTextColor.GRAY).decoration(TextDecoration.BOLD, false))
-                .addButton(actionButton("Create", NamedTextColor.GREEN, this::createNewMarkerDialog))
-                .addButton(Button.create().text(Component.text("[Edit]", NamedTextColor.GOLD, TextDecoration.BOLD)).setDisabled(true))
-                .addButton(actionButton("Delete", NamedTextColor.RED, player -> showDialog(player, buildDeleteMenu())))
-                .addButton(buildExitButton());
-    }
-
-    private HotbarMenu buildHomeHotbar() {
-        HotbarMenu menu = new HotbarMenu(getPlugin());
-        menu.setItemAt(2, createHotbarItem(Material.NETHER_STAR,
-                Component.text("New Marker", NamedTextColor.GREEN),
-                List.of(Component.text("Rightclick on a block or in air to create a new marker in the world", NamedTextColor.GRAY)))
-                .addBlockClickAction(e -> {
-                    Location loc;
-                    if (e.getAction() == Action.LEFT_CLICK_AIR || e.getAction() == Action.RIGHT_CLICK_AIR || e.getClickedBlock() == null) {
-                        loc = null;
-                    } else {
-                        loc = e.getClickedBlock().getLocation();
-                    }
-                    buildMarkerIdInput()
-                })
-        );
-
-
-        return menu;
-    }
-
-    private void createNewMarkerDialog(Player player) {
-        GenericQuestion menu = dialog(Component.text("Select the type of marker you want to create:"));
-        MCCodeCampLib.getBlockMarkerRegistry().getObjectTypes().forEach((id, type) -> {
-            Component name = type instanceof IEditorObjectDescriptor descriptor ? descriptor.getDisplayName() : Component.text(id);
-            menu.addButton(Button.create().text(Component.text("[").append(name).append(Component.text("]")))
-                    .addAction(CustomAction.create(p -> {
-                        if (isActive(p)) buildMarkerIdInput(id, name, null).run(p);
-                    })));
-        });
-        menu.addButton(actionButton("Cancel", NamedTextColor.GRAY, this::showHome));
-        showDialog(player, menu);
-    }
-
-    private StringWithRulesInputAction buildMarkerIdInput(String type, Component name, Location loc) {
-        StringWithRulesInputAction input = StringWithRulesInputAction.create(player -> id -> {
-            if (!isActive(player)) return;
-            if (!id.matches("[a-zA-Z0-9_]+")) return;
-            var registry = MCCodeCampLib.getBlockMarkerRegistry();
-            if (registry.hasObject(type, id)) {
-                player.sendMessage(Component.text("An object of this type already uses that ID.", NamedTextColor.RED));
-                buildMarkerIdInput(type, name, loc).run(player);
-                return;
-            }
-            Location location = loc;
-            if (location == null) {
-                Block target = player.getTargetBlockExact(4, FluidCollisionMode.NEVER);
-                location = target == null ? player.getLocation().getBlock().getLocation() : target.getLocation();
-            }
-            IBlockRegestryObject created = registry.createObject(type, id, location);
-            showHome(player);
-            player.sendMessage(Component.text(created == null ? "Could not create marker." : "Added new object: " + id,
-                    created == null ? NamedTextColor.RED : NamedTextColor.GREEN));
-        }).regexRule("^[a-zA-Z0-9_]+$")
-                .prompt(EDITOR_HEADLINE.append(Component.text("Please input the ID of the new ")).append(name)
-                        .appendNewline().append(Component.text("Use letters, numbers and underscores. Look at a block within four blocks; otherwise your feet are used. Type cancel to return.", NamedTextColor.GRAY)));
-        input.addReTryAction(CustomAction.create(player -> {
-                    if (isActive(player)) buildMarkerIdInput(type, name, null).run(player);
-                }))
-                .addCancelAction(CustomAction.create(this::showHome))
-                .addTimeoutAction(CustomAction.create(this::showHome));
-        input.reTry(true);
-        return input;
-    }
-
-    private GenericQuestion buildDeleteMenu() {
-        GenericQuestion menu = dialog(Component.text("Select a loaded marker to delete:"));
-        MCCodeCampLib.getBlockMarkerRegistry().getRegisteredObjects().stream()
-                .sorted(Comparator.comparing(IBlockRegestryObject::getTypeID).thenComparing(IBlockRegestryObject::getID))
-                .forEach(marker -> menu.addButton(actionButton(marker.getTypeID() + ": " + marker.getID(), NamedTextColor.RED,
-                        player -> showDialog(player, buildDeleteConfirmation(marker.getUUID())))));
-        menu.addButton(actionButton("Cancel", NamedTextColor.GRAY, this::showHome));
-        return menu;
-    }
-
-    private GenericQuestion buildDeleteConfirmation(UUID uuid) {
-        var marker = MCCodeCampLib.getBlockMarkerRegistry().findRegisteredObject(uuid);
-        String label = marker == null ? uuid.toString() : marker.getTypeID() + ": " + marker.getID();
-        return dialog(Component.text("Permanently delete " + label + "?", NamedTextColor.RED))
-                .addButton(actionButton("Confirm delete", NamedTextColor.RED, player -> {
-                    removeObject(player, uuid);
-                }))
-                .addButton(actionButton("Cancel", NamedTextColor.GRAY, this::showHome));
-    }
-
-    private Button buildExitButton() {
-        return Button.create()
-                .text(Component.text("[Exit]", NamedTextColor.RED, TextDecoration.BOLD))
-                .addAction(CustomAction.create(p -> {
-                    exitPlayer(p);
-                }));
-    }
-
-    private void removeObject(Player player, UUID uuid) {
-        var registry = MCCodeCampLib.getBlockMarkerRegistry();
-        // Resolve by UUID again: an unloaded/deleted marker must not delete a replacement with the same ID.
-        if (registry.findRegisteredObject(uuid) == null) {
-            showHome(player);
-            player.sendMessage(Component.text("This marker is no longer loaded.", NamedTextColor.RED));
-            return;
-        }
-        registry.removeObject(uuid);
-        showHome(player);
-        boolean removed = registry.findRegisteredObject(uuid) == null;
-        player.sendMessage(Component.text(removed ? "Deleted marker." : "Could not delete marker.",
-                removed ? NamedTextColor.GREEN : NamedTextColor.RED));
-    }
 
     private void exitPlayer(Player player) {
         MCCodeCampLib.getEditorManager().leaveEditor(player);
@@ -235,15 +140,225 @@ public class WorldMarkerEditor extends AEditor {
         return new HotbarItem(getPlugin(), itemStack);
     }
 
-    private void showHomeDialog(Player player, Map<String, Object> context) {
+    private Button homeButton() {
+        return actionButton("Home", DISPLAY_OPTION.colorPalette().PRIMARY(), p -> navigate(p, "", new HashMap<>()));
+    }
 
+    private Button exitButton() {
+        return actionButton("Exit", DISPLAY_OPTION.colorPalette().ERROR(), this::exitPlayer);
+    }
+
+    private void showHomeDialog(Player player, Map<String, Object> context) {
+        GenericQuestion.create(EDITOR_HEADLINE.append(Component.text("What do you want to do?", DISPLAY_OPTION.colorPalette().PRIMARY())))
+                .addButton(
+                        actionButton("Create", DISPLAY_OPTION.colorPalette().SUCCESS(), p -> {
+                            navigate(p, DIALOG_TYPE_SELECTOR, Map.ofEntries(
+                                    Map.entry("purpose", "object_creation"),
+                                    Map.entry("!" + DIALOG_TYPE_SELECTOR  + "_show_home_button", true)
+                            ));
+                        })
+                )
+                .addButton(
+                        actionButton("Delete", DISPLAY_OPTION.colorPalette().ERROR(), p -> {
+                            navigate(player, DIALOG_OBJECT_SELECTOR, Map.ofEntries(
+                                    Map.entry("purpose", "object_deletion")
+                            ));
+                        })
+                )
+                .addButton(exitButton())
+                .show(player);
+        hotbarMenu.show(player);
+    }
+
+    private void showTypeSelectionDialog(Player player, Map<String, Object> context) {
+        GenericQuestion question = GenericQuestion.create(EDITOR_HEADLINE.append(Component.text("Please select a object type:", DISPLAY_OPTION.colorPalette().PRIMARY())));
+        Map<String, Object> clonedContext = new HashMap<>(context);
+        String purposeContext = clonedContext.get("purpose") instanceof String s ? s : ""; // set to the extracted purpose or set to empty string
+
+        String nextDialogPath = switch (purposeContext) {
+            case "object_creation" -> DIALOG_ID_INPUT;
+            default -> "";
+        };
+
+
+        for (Map.Entry<String, RegistryObjectType> entry : MCCodeCampLib.getBlockMarkerRegistry().getObjectTypes().entrySet()) {
+
+            Button button = Button.create() // create a button with a action that sends the player to the next dialog with the added context of what was selected
+                    .addAction(CustomAction.create(p -> {
+                        clonedContext.put(DIALOG_TYPE_SELECTOR + "_result", entry.getValue().getTypeID());
+                    }))
+                    .addAction(navigateAction(nextDialogPath, clonedContext));
+
+            // get the displayname if available or default to ID
+            if (entry.getValue() instanceof StyledRegistryObjectType styled) {
+                button.text(styled.getDisplayName());
+                if (!PlainTextComponentSerializer.plainText().serialize(styled.getDescription()).isEmpty()) {
+                    button.hoverText(styled.getDescription());
+                }
+            } else {
+                button.text(Component.text(entry.getValue().getTypeID()));
+            }
+
+
+            question.addButton(button);
+        }
+        if (context.containsKey("!" + DIALOG_TYPE_SELECTOR + "_show_home_button")) question.addButton(homeButton());
+        question.show(player);
+    }
+
+    private void showIDInputDialog(Player player, Map<String, Object> context) {
+        Map<String, Object> clonedContext = new HashMap<>(context);
+        String purposeContext = clonedContext.get("purpose") instanceof String s ? s : ""; // set to the extracted purpose or set to empty string
+
+        String nextDialogPath = switch (purposeContext) {
+            case "object_creation" -> DIALOG_LOCATION_INPUT_SELECTION;
+            default -> "";
+        };
+
+
+        StringWithRulesInputAction.create()
+                .regexRule("^[a-zA-Z0-9_\\-]+$")
+                .prompt(EDITOR_HEADLINE.append(Component.text("Please enter an ID!", DISPLAY_OPTION.colorPalette().PRIMARY())))
+                .reTry(true)
+                .addReTryAction(navigateAction(DIALOG_ID_INPUT, context))
+                .onResponse(p -> s -> {
+                    clonedContext.put(DIALOG_ID_INPUT + "_result", s);
+                    navigate(player, nextDialogPath, clonedContext);
+                })
+                .addCancelAction(navigateAction(""))
+                .run(player);
+    }
+
+    private void showLocationInputSelectionDialog(Player player, Map<String, Object> context) {
+        if (context.get("generic_inputted_location") instanceof Location loc) {
+            afterLocationInputHelper(player, context, loc);
+            return;
+        }
+
+        GenericQuestion.create(EDITOR_HEADLINE.append(Component.text("Please select how you want to input a location", DISPLAY_OPTION.colorPalette().PRIMARY())))
+                .addButton(actionButton("Player feet", DISPLAY_OPTION.colorPalette().SECONDARY(), p -> {
+                    afterLocationInputHelper(p, context, p.getLocation());
+                }))
+                .addButton(actionButton("Player eyes", DISPLAY_OPTION.colorPalette().SECONDARY(), p -> {
+                    afterLocationInputHelper(p, context, p.getEyeLocation());
+                }))
+                .addButton(actionButton("Target Block", DISPLAY_OPTION.colorPalette().SECONDARY(), p -> {
+                    Block block = p.getTargetBlockExact(4, FluidCollisionMode.NEVER);
+                    if (block == null) {
+                        navigate(player, DIALOG_LOCATION_INPUT_SELECTION, context);
+                        return;
+                    }
+                    afterLocationInputHelper(p, context, block.getLocation());
+                }))
+                .addButton(actionButton("Input Location", DISPLAY_OPTION.colorPalette().SECONDARY(),
+                        p -> navigate(p, DIALOG_LOCATION_INPUT_TYPING, context))).show(player);
+    }
+
+    private void showLocationInputTypingDialog(Player player, Map<String, Object> context) {
+        LocationInputAction.create(p -> l -> {
+            // The dialog accepts "x y z" without a world. Resolve that form
+            // against the world of the player who submitted the response.
+            if (l.getWorld() == null) {
+                l.setWorld(p.getWorld());
+            }
+            afterLocationInputHelper(p, context, l);
+        })
+                .reTry(true)
+                .addReTryAction(navigateAction(DIALOG_LOCATION_INPUT_TYPING, context))
+                .addCancelAction(navigateAction(""))
+                .run(player);
+    }
+
+    private void afterLocationInputHelper(Player player, Map<String, Object> context, Location inputtedLocation) {
+        String purposeContext = context.get("purpose") instanceof String s ? s : ""; // set to the extracted purpose or set to empty string
+
+        Location finishedLocation = inputtedLocation; // formating location if necessary
+        if (context.containsKey("!" + DIALOG_GROUP_LOCATION_INPUT + "_only_block_loc")) {
+            finishedLocation = finishedLocation.getBlock().getLocation();
+        }
+
+        String nextDialogPath = "";
+        switch (purposeContext) {
+            case "object_creation" -> {
+                nextDialogPath = "";
+                String id = null;
+                String type = null;
+
+
+                if (context.get(DIALOG_ID_INPUT + "_result") instanceof String s) {
+                    id = s;
+                }
+                if (context.get(DIALOG_TYPE_SELECTOR + "_result") instanceof String s) {
+                    type = s;
+                }
+                if (id == null || type == null) { // errorhandeling case: thwors player to home scree without editing anything
+                    navigateAction("").run(player);
+                    player.sendMessage(Component.text("ERROR: Inputs wheren passed correctly. Report to developer!", NamedTextColor.RED));
+                    return;
+                }
+                MCCodeCampLib.getPluginLogger().info("Creating new World Marker entry in registry");
+                IBlockRegestryObject created = createNewRegistryEntry(type, id, finishedLocation);
+                player.sendMessage(Component.text(
+                        created == null ? "Could not create marker. Check the server log for the reason."
+                                : "Added new marker: " + id,
+                        created == null ? NamedTextColor.RED : DISPLAY_OPTION.colorPalette().SUCCESS()));
+                navigateAction("").run(player);
+            }
+            default -> nextDialogPath = "";
+        };
+
+    }
+
+    private IBlockRegestryObject createNewRegistryEntry(String type, String id, Location location) {
+        if (location == null || location.getWorld() == null) {
+            MCCodeCampLib.getPluginLogger().warning("Cannot create world marker without a world location");
+            return null;
+        }
+        Bukkit.broadcast(Component.text(type + " " + id + " " + location));
+        IBlockRegestryObject created = MCCodeCampLib.getBlockMarkerRegistry().createObject(type, id, location);
+        if (created == null) {
+            MCCodeCampLib.getPluginLogger().warning("Could not create world marker type=" + type + " id=" + id);
+        }
+        return created;
+    }
+
+    private CustomAction navigateAction(String target) {
+        return navigateAction(target, new HashMap<>());
+    }
+
+    private CustomAction navigateAction(String target, Map<String, Object> context) {
+        return CustomAction.create(p -> navigate(p, target, context));
+    }
+
+    private void navigate(Player player, String target) {
+        navigate(player, target, new HashMap<>());
+    }
+
+    private void navigate(Player player, String target, Map<String, Object> context) {
+        new PlayerRequestEditorNavigationEvent(player, target, this, context).callEvent();
+    }
+
+    private Map<String, Object> stripObjectsMeantForDialog(Map<String, Object> context, String dialog_key) {
+        Map<String, Object> output = new HashMap<>();
+        for (Map.Entry<String, Object> entry : context.entrySet()) {
+            if (!entry.getKey().startsWith("!" + dialog_key)) {
+                output.put(entry.getKey(), entry.getValue());
+            }
+        }
+        return output;
     }
 
 
     @Override
     public void displayDialog(Player player, String path, Map<String, Object> context) {
+        if (!inInThisEditor(player)) {
+            return;
+        }
         switch (path) {
-
+            case DIALOG_TYPE_SELECTOR -> showTypeSelectionDialog(player, context);
+            case DIALOG_ID_INPUT -> showIDInputDialog(player, context);
+            case DIALOG_LOCATION_INPUT_SELECTION -> showLocationInputSelectionDialog(player, context);
+            case DIALOG_LOCATION_INPUT_TYPING -> showLocationInputTypingDialog(player, context);
             default -> showHomeDialog(player, context);
         }
     }

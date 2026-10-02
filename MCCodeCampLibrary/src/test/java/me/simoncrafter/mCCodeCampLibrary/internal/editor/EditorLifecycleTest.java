@@ -9,6 +9,8 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginManager;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
+
+import java.util.Map;
 import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -54,6 +56,7 @@ class EditorLifecycleTest {
             EditorManager manager = new EditorManager(mock(Plugin.class));
             AEditor shared = new AEditor(mock(Plugin.class)) {
                 protected void onPlayerClickObjectEvent(me.simoncrafter.mCCodeCampLibrary.internal.editor.events.PlayerClickEditableObjectEvent e) {}
+                public void displayDialog(Player player, String path, Map<String, Object> context) {}
             };
             IEditable marker = mock(IEditable.class);
             UUID uuid = UUID.randomUUID();

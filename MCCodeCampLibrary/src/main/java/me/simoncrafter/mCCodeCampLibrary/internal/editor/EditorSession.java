@@ -3,10 +3,7 @@ package me.simoncrafter.mCCodeCampLibrary.internal.editor;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayDeque;
-import java.util.Deque;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -23,25 +20,39 @@ public class EditorSession {
     }
 
     void put(AEditor editor) {
+        if (editor == null || (!editorStack.isEmpty() && editorStack.peek().getEditor() == editor)) return;
         editor.join(player);
         editorStack.push(new EditorFrame(editor));
+        setDialogPath("", new HashMap<>());
     }
 
     AEditor pop() {
+        return pop(false);
+    }
+
+    private AEditor pop(boolean skipDisplay) {
         EditorFrame frame = editorStack.poll();
         if (frame == null) return null;
-        if (frame.getSelection() != null) frame.getSelection().deselect(player);
-        frame.getEditor().leave(player);
+        removePlayerFromEditorFrame(player, frame);
 
-        if (!editorStack.isEmpty()) {
-            IEditable sel = editorStack.peek().getSelection();
+        if (!editorStack.isEmpty() && !skipDisplay) {
+            EditorFrame newFrame = editorStack.peek();
+            IEditable sel = newFrame.getSelection();
             if (sel != null) {
                 sel.select(player);
             }
+            newFrame.getEditor().displayDialog(player, newFrame.getDialogPath(), newFrame.getDialogContext());
         }
 
         return frame.getEditor();
     }
+
+    private void removePlayerFromEditorFrame(Player player, EditorFrame frame) {
+        if (frame == null) return;
+        if (frame.getSelection() != null) frame.getSelection().deselect(player);
+        frame.getEditor().leave(player);
+    }
+
 
     /**
      * Removes the players complete editor stack and puts them into the new editor as the root editor
@@ -49,14 +60,10 @@ public class EditorSession {
      */
     void setEditor(AEditor editor) {
         editorStack.forEach(frame -> {
-            if (frame.getSelection() != null) frame.getSelection().deselect(player);
-            frame.getEditor().leave(player);
+            removePlayerFromEditorFrame(player, frame);
         });
         editorStack.clear();
-        if (editor != null) {
-            editorStack.push(new EditorFrame(editor));
-            editor.join(player);
-        }
+        put(editor);
     }
 
     @Nullable AEditor getCurrentEditor() {
@@ -110,7 +117,7 @@ public class EditorSession {
         }
         int popCount = 0;
         while (editorStack.peek().getEditor() != parent) {
-            pop();
+            pop(true);
             popCount++;
         }
         if (child != null) put(child);
@@ -118,6 +125,7 @@ public class EditorSession {
     }
 
 
+    // send a deselect signal to the Editable (just to be safe), and set the players selection to NULL if the player have selected that object
     void onEditableUnload(UUID uuid) {
         for (EditorFrame frame : editorStack) {
             IEditable selected = frame.getSelection();
@@ -133,11 +141,11 @@ public class EditorSession {
     }
 
     void onEditorTerminate(AEditor editor) {
-        if (editorStack.stream().noneMatch(f -> f.getEditor()==editor)) {
+        if (!doesStackContain(editor)) {
             return;
         }
         while (editorStack.peek().getEditor() != editor) {
-            pop();
+            pop(true);
         }
         pop(); // pop the terminated editor as well
     }
@@ -147,7 +155,7 @@ public class EditorSession {
             return false;
         }
         EditorFrame frame = editorStack.peek();
-        frame.setDialogPath(path);
+        frame.setDialogPath(path, context);
         frame.getEditor().displayDialog(player, path, context);
         return true;
     }

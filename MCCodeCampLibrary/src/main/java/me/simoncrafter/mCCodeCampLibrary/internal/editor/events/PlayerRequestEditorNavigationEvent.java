@@ -20,14 +20,16 @@ public class PlayerRequestEditorNavigationEvent extends PlayerEvent implements C
     private final AEditor currentEditor;
     private final AEditor requestedEditor;
     private final Map<String, Object> eventContext;
+    private final boolean openNewSession;
 
-    public PlayerRequestEditorNavigationEvent(@NotNull Player player, String requestedPath, String currentPath, AEditor currentEditor, AEditor requestedEditor, Map<String, Object> eventContext) {
+    public PlayerRequestEditorNavigationEvent(@NotNull Player player, String requestedPath, String currentPath, AEditor currentEditor, AEditor requestedEditor, Map<String, Object> eventContext, boolean openNewSession) {
         super(player);
         this.requestedPath = requestedPath;
         this.currentPath = currentPath;
         this.currentEditor = currentEditor;
         this.requestedEditor = requestedEditor;
         this.eventContext = eventContext;
+        this.openNewSession = openNewSession;
     }
 
     public PlayerRequestEditorNavigationEvent(@NotNull Player player, String requestedPath, AEditor requestedEditor) {
@@ -37,6 +39,7 @@ public class PlayerRequestEditorNavigationEvent extends PlayerEvent implements C
         this.currentEditor = null;
         this.currentPath = "";
         this.eventContext = new HashMap<>();
+        openNewSession = false;
     }
 
     public PlayerRequestEditorNavigationEvent(@NotNull Player player, String requestedPath, AEditor requestedEditor, Map<String, Object> eventContext) {
@@ -46,16 +49,9 @@ public class PlayerRequestEditorNavigationEvent extends PlayerEvent implements C
         this.eventContext = eventContext;
         this.currentPath = "";
         this.currentEditor = null;
+        openNewSession = false;
     }
 
-    public PlayerRequestEditorNavigationEvent(@NotNull Player player, String requestedPath, Map<String, Object> eventContext) {
-        super(player);
-        this.requestedPath = requestedPath;
-        this.eventContext = eventContext;
-        this.currentPath = "";
-        this.currentEditor = null;
-        this.requestedEditor = null;
-    }
 
     @Override
     public boolean isCancelled() {
@@ -89,6 +85,13 @@ public class PlayerRequestEditorNavigationEvent extends PlayerEvent implements C
 
     public Map<String, Object> getEventContextMap() {
         return new HashMap<>(eventContext);
+    }
+
+    /**
+     * @return Whether to open a new session
+     */
+    public boolean openNewSession() {
+        return openNewSession;
     }
 
     public static HandlerList getHandlerList() {

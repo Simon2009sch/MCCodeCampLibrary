@@ -5,6 +5,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -141,13 +142,13 @@ public class EditorSession {
         pop(); // pop the terminated editor as well
     }
 
-    boolean setDialogPath(String path) {
+    boolean setDialogPath(String path, Map<String, Object> context) {
         if (editorStack.peek() == null) {
             return false;
         }
         EditorFrame frame = editorStack.peek();
         frame.setDialogPath(path);
-        frame.getEditor().displayDialog(Player player, String path);
+        frame.getEditor().displayDialog(player, path, context);
         return true;
     }
 

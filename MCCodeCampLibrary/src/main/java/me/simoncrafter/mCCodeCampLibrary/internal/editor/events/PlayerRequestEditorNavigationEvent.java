@@ -8,36 +8,53 @@ import org.bukkit.event.HandlerList;
 import org.bukkit.event.player.PlayerEvent;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public class PlayerRequestEditorNavigationEvent extends PlayerEvent implements Cancellable {
 
     private static HandlerList handlerList = new HandlerList();
     private boolean cancelled = false;
-    private String requestedPath;
-    private String currentPath;
-    private AEditor currentEditor;
-    private AEditor requestedEditor;
+    private final String requestedPath;
+    private final String currentPath;
+    private final AEditor currentEditor;
+    private final AEditor requestedEditor;
+    private final Map<String, Object> eventContext;
 
-    public PlayerRequestEditorNavigationEvent(@NotNull Player player, AEditor requestedEditor, AEditor currentEditor, String currentPath, String requestedPath) {
+    public PlayerRequestEditorNavigationEvent(@NotNull Player player, String requestedPath, String currentPath, AEditor currentEditor, AEditor requestedEditor, Map<String, Object> eventContext) {
         super(player);
-        this.requestedEditor = requestedEditor;
-        this.currentEditor = currentEditor;
-        this.currentPath = currentPath;
         this.requestedPath = requestedPath;
+        this.currentPath = currentPath;
+        this.currentEditor = currentEditor;
+        this.requestedEditor = requestedEditor;
+        this.eventContext = eventContext;
     }
 
-    public PlayerRequestEditorNavigationEvent(@NotNull Player player, AEditor currentEditor, String currentPath, String requestedPath) {
+    public PlayerRequestEditorNavigationEvent(@NotNull Player player, String requestedPath, AEditor requestedEditor) {
         super(player);
-        this.currentEditor = currentEditor;
-        this.currentPath = currentPath;
         this.requestedPath = requestedPath;
-        requestedEditor = currentEditor;
+        this.requestedEditor = requestedEditor;
+        this.currentEditor = null;
+        this.currentPath = "";
+        this.eventContext = new HashMap<>();
     }
 
-    public PlayerRequestEditorNavigationEvent(@NotNull Player player, String requestedPath, String currentPath, AEditor requestedEditor) {
+    public PlayerRequestEditorNavigationEvent(@NotNull Player player, String requestedPath, AEditor requestedEditor, Map<String, Object> eventContext) {
         super(player);
         this.requestedPath = requestedPath;
-        this.currentPath = currentPath;
         this.requestedEditor = requestedEditor;
+        this.eventContext = eventContext;
+        this.currentPath = "";
+        this.currentEditor = null;
+    }
+
+    public PlayerRequestEditorNavigationEvent(@NotNull Player player, String requestedPath, Map<String, Object> eventContext) {
+        super(player);
+        this.requestedPath = requestedPath;
+        this.eventContext = eventContext;
+        this.currentPath = "";
+        this.currentEditor = null;
+        this.requestedEditor = null;
     }
 
     @Override
@@ -64,6 +81,14 @@ public class PlayerRequestEditorNavigationEvent extends PlayerEvent implements C
 
     public AEditor getRequestedEditor() {
         return requestedEditor;
+    }
+
+    public Object getEventContext(String key) {
+        return eventContext.get(key);
+    }
+
+    public Map<String, Object> getEventContextMap() {
+        return new HashMap<>(eventContext);
     }
 
     public static HandlerList getHandlerList() {

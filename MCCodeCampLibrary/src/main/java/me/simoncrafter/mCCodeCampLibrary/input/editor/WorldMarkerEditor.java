@@ -34,6 +34,7 @@ import org.bukkit.plugin.Plugin;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -234,8 +235,16 @@ public class WorldMarkerEditor extends AEditor {
         return new HotbarItem(getPlugin(), itemStack);
     }
 
-    @Override
-    public void displayDialog(Player player, String path) {
+    private void showHomeDialog(Player player, Map<String, Object> context) {
 
+    }
+
+
+    @Override
+    public void displayDialog(Player player, String path, Map<String, Object> context) {
+        switch (path) {
+
+            default -> showHomeDialog(player, context);
+        }
     }
 }

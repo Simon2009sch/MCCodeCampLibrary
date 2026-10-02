@@ -212,7 +212,7 @@ public class EditorManager implements Listener {
         }
 
         if (event.getRequestedPath() != null) {
-            sessionFor(player).setDialogPath()
+            sessionFor(player).setDialogPath(event.getRequestedPath(), event.getEventContextMap());
         }
     }
 }

@@ -124,6 +124,6 @@ public abstract class AEditor implements Listener {
         return plugin;
     }
 
-    public abstract void displayDialog(Player player, String path);
+    public abstract void displayDialog(Player player, String path, Map<String, Object> context);
 
 }

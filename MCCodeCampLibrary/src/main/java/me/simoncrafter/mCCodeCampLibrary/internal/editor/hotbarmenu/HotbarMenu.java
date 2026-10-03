@@ -108,6 +108,16 @@ public class HotbarMenu implements Listener {
         }
     }
 
+    public static void forceCloseDialog(Player player) {
+        instances.forEach(m -> m.onPlayerForeClose(player));
+    }
+
+    private void onPlayerForeClose(Player player) {
+        if (players.contains(player)) {
+            exit(player);
+        }
+    }
+
     private void unregisterIfEmpty() {
         if (players.isEmpty()) {
             instances.remove(this);

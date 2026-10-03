@@ -6,10 +6,12 @@ import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.actions.CustomAction;
 import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.actions.InputActions.LocationInputAction;
 import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.actions.InputActions.StringWithRulesInputAction;
 import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.buttons.Button;
+import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.questions.ConfirmQuestion;
 import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.questions.GenericQuestion;
 import me.simoncrafter.mCCodeCampLibrary.internal.activation.StyledRegistryObjectType;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.AEditor;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.IEditable;
+import me.simoncrafter.mCCodeCampLibrary.internal.editor.IEditorObjectDescriptor;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.events.PlayerClickEditableObjectEvent;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.events.PlayerRequestEditorNavigationEvent;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.hotbarmenu.HotbarItem;
@@ -39,12 +41,12 @@ import java.util.*;
 import java.util.function.Consumer;
 
 public class WorldMarkerEditor extends AEditor {
-    private static final Component EDITOR_HEADLINE = Component.text("World Marker Editor", NamedTextColor.GOLD, TextDecoration.BOLD).style(Style.style().build()).appendNewline();
+    private static final Component EDITOR_HEADLINE = Component.empty().append(Component.text("World Marker Editor", NamedTextColor.GOLD, TextDecoration.BOLD)).appendNewline();
     private static final DisplayOption DISPLAY_OPTION = new DisplayOption(DisplayOptions.ColorPalettes.GREEN_ISH, DisplayOptions.SoundOptions.DEFAULT);
 
     private static final String DIALOG_TYPE_SELECTOR = "type_selector";
     private static final String DIALOG_OBJECT_SELECTOR = "object_selector";
-    private static final String DIALOG_OBJECT_DELETION = "object_deletion";
+    private static final String DIALOG_CONFIRM_DELETE = "confirm_deletion";
     private static final String DIALOG_ID_INPUT = "id_input";
     private static final String DIALOG_GROUP_LOCATION_INPUT = "location_input";
     private static final String DIALOG_LOCATION_INPUT_SELECTION = DIALOG_GROUP_LOCATION_INPUT + "_selection";
@@ -53,20 +55,6 @@ public class WorldMarkerEditor extends AEditor {
 
     public WorldMarkerEditor(Plugin plugin) {
         super(plugin);
-        hotbarMenu = new HotbarMenu(plugin);
-        hotbarMenu.setItemAt(0, new HotbarItem(plugin, new ItemStack(Material.SUNFLOWER))
-                .addBlockClickAction(event -> {
-                    Map<String, Object> context = new HashMap<>();
-                    context.put("purpose", "object_creation");
-                    context.put(DIALOG_TYPE_SELECTOR + "_result", "button");
-
-                    // Air clicks deliberately omit the location. The normal
-                    // location-selection dialog will then be shown later.
-                    if (event.getClickedBlock() != null) {
-                        context.put("generic_inputted_location", event.getClickedBlock().getLocation());
-                    }
-                    navigate(event.getPlayer(), DIALOG_ID_INPUT, context);
-                }));
     }
 
     @Override
@@ -85,6 +73,7 @@ public class WorldMarkerEditor extends AEditor {
     @Override
     protected void leave(Player player) {
         super.leave(player);
+        if (getPlayers().contains(player)) HotbarMenu.forceCloseDialog(player);
     }
 
     @Override
@@ -149,13 +138,17 @@ public class WorldMarkerEditor extends AEditor {
     }
 
     private void showHomeDialog(Player player, Map<String, Object> context) {
-        GenericQuestion.create(EDITOR_HEADLINE.append(Component.text("What do you want to do?", DISPLAY_OPTION.colorPalette().PRIMARY())))
+        Map<String, Object> clonedContext = new HashMap<>(context);
+
+        Map<String, Object> objectCreationBasicArgumentMap = Map.ofEntries(
+                Map.entry("purpose", "object_creation"),
+                Map.entry("!" + DIALOG_TYPE_SELECTOR  + "_show_home_button", true),
+                Map.entry("!" + DIALOG_GROUP_LOCATION_INPUT + "_only_block_loc", true));
+
+        GenericQuestion.create(createGenericQuestionHeader(context, "home_message", player).append(Component.text("What do you want to do?", DISPLAY_OPTION.colorPalette().PRIMARY())))
                 .addButton(
                         actionButton("Create", DISPLAY_OPTION.colorPalette().SUCCESS(), p -> {
-                            navigate(p, DIALOG_TYPE_SELECTOR, Map.ofEntries(
-                                    Map.entry("purpose", "object_creation"),
-                                    Map.entry("!" + DIALOG_TYPE_SELECTOR  + "_show_home_button", true)
-                            ));
+                            navigate(p, DIALOG_TYPE_SELECTOR, objectCreationBasicArgumentMap);
                         })
                 )
                 .addButton(
@@ -167,11 +160,26 @@ public class WorldMarkerEditor extends AEditor {
                 )
                 .addButton(exitButton())
                 .show(player);
+
+        HotbarMenu hotbarMenu = new HotbarMenu(getPlugin());
+        hotbarMenu.setItemAt(1, createHotbarItem(
+                Material.NETHER_STAR,
+                Component.text("Create", DISPLAY_OPTION.colorPalette().GREEN()),
+                List.of(Component.text("Creates a new object of you choosing at the location you click", DISPLAY_OPTION.colorPalette().HINT())))
+                .addBlockClickAction(e -> {
+                    Block block = e.getClickedBlock();
+                    Map<String, Object> arguments = new HashMap<>(objectCreationBasicArgumentMap);
+                    if (block != null) {
+                        arguments.put("generic_inputted_location", block.getLocation());
+                    }
+                    navigate(e.getPlayer(), DIALOG_TYPE_SELECTOR, arguments);
+                })
+        );
         hotbarMenu.show(player);
     }
 
     private void showTypeSelectionDialog(Player player, Map<String, Object> context) {
-        GenericQuestion question = GenericQuestion.create(EDITOR_HEADLINE.append(Component.text("Please select a object type:", DISPLAY_OPTION.colorPalette().PRIMARY())));
+        GenericQuestion question = GenericQuestion.create(createGenericQuestionHeader(context, DIALOG_TYPE_SELECTOR + "_message", player).append(Component.text("Please select a object type:", DISPLAY_OPTION.colorPalette().PRIMARY())));
         Map<String, Object> clonedContext = new HashMap<>(context);
         String purposeContext = clonedContext.get("purpose") instanceof String s ? s : ""; // set to the extracted purpose or set to empty string
 
@@ -218,7 +226,7 @@ public class WorldMarkerEditor extends AEditor {
 
         StringWithRulesInputAction.create()
                 .regexRule("^[a-zA-Z0-9_\\-]+$")
-                .prompt(EDITOR_HEADLINE.append(Component.text("Please enter an ID!", DISPLAY_OPTION.colorPalette().PRIMARY())))
+                .prompt(createGenericQuestionHeader(context, DIALOG_ID_INPUT + "_message", player).append(Component.text("Please enter an ID!", DISPLAY_OPTION.colorPalette().PRIMARY())))
                 .reTry(true)
                 .addReTryAction(navigateAction(DIALOG_ID_INPUT, context))
                 .onResponse(p -> s -> {
@@ -227,6 +235,8 @@ public class WorldMarkerEditor extends AEditor {
                 })
                 .addCancelAction(navigateAction(""))
                 .run(player);
+
+        new HotbarMenu(getPlugin()).show(player);
     }
 
     private void showLocationInputSelectionDialog(Player player, Map<String, Object> context) {
@@ -235,7 +245,7 @@ public class WorldMarkerEditor extends AEditor {
             return;
         }
 
-        GenericQuestion.create(EDITOR_HEADLINE.append(Component.text("Please select how you want to input a location", DISPLAY_OPTION.colorPalette().PRIMARY())))
+        GenericQuestion.create(createGenericQuestionHeader(context, DIALOG_LOCATION_INPUT_SELECTION + "_message", player).append(Component.text("Please select how you want to input a location", DISPLAY_OPTION.colorPalette().PRIMARY())))
                 .addButton(actionButton("Player feet", DISPLAY_OPTION.colorPalette().SECONDARY(), p -> {
                     afterLocationInputHelper(p, context, p.getLocation());
                 }))
@@ -252,6 +262,30 @@ public class WorldMarkerEditor extends AEditor {
                 }))
                 .addButton(actionButton("Input Location", DISPLAY_OPTION.colorPalette().SECONDARY(),
                         p -> navigate(p, DIALOG_LOCATION_INPUT_TYPING, context))).show(player);
+
+        HotbarMenu hotbarMenu = new HotbarMenu(getPlugin());
+        hotbarMenu.setItemAt(1, createHotbarItem(
+                Material.NETHER_STAR,
+                Component.text("Select Location", DISPLAY_OPTION.colorPalette().GREEN()),
+                List.of(
+                        Component.text("Click a block to select a location", DISPLAY_OPTION.colorPalette().HINT()),
+                        Component.text("Click air to select your player's location", DISPLAY_OPTION.colorPalette().HINT()),
+                        Component.text("Shift click air to select your player's eye's location", DISPLAY_OPTION.colorPalette().HINT())
+                )).addBlockClickAction(e -> {
+                    Block block = e.getClickedBlock();
+                    Player p = e.getPlayer();
+                    if (block != null) {
+                        afterLocationInputHelper(p, context, block.getLocation());
+                        return;
+                    }
+                    if (p.isSneaking()) {
+                        afterLocationInputHelper(p, context, p.getEyeLocation());
+                        return;
+                    }
+                    afterLocationInputHelper(p, context, p.getLocation());
+                })
+        );
+        hotbarMenu.show(player);
     }
 
     private void showLocationInputTypingDialog(Player player, Map<String, Object> context) {
@@ -292,8 +326,7 @@ public class WorldMarkerEditor extends AEditor {
                     type = s;
                 }
                 if (id == null || type == null) { // errorhandeling case: thwors player to home scree without editing anything
-                    navigateAction("").run(player);
-                    player.sendMessage(Component.text("ERROR: Inputs wheren passed correctly. Report to developer!", NamedTextColor.RED));
+                    sendErrorToPlayer(player, "Inputs wheren passed correctly. Report to developer!");
                     return;
                 }
                 MCCodeCampLib.getPluginLogger().info("Creating new World Marker entry in registry");
@@ -308,6 +341,82 @@ public class WorldMarkerEditor extends AEditor {
         };
 
     }
+
+    private void showObjectSelectionDialog(Player player, Map<String, Object> context) {
+        String purposeContext = context.get("purpose") instanceof String s ? s : "";
+        Map<String, Object> clonedContext = new HashMap<>(context);
+
+        String nextDialogPath = switch (purposeContext) {
+            case "object_deletion" -> DIALOG_CONFIRM_DELETE;
+            default -> "";
+        };
+
+        GenericQuestion question = GenericQuestion.create(createGenericQuestionHeader(context, DIALOG_OBJECT_SELECTOR + "_message", player).append(Component.text("Please select a object", DISPLAY_OPTION.colorPalette().PRIMARY())));
+
+
+        for (IBlockRegestryObject obj : MCCodeCampLib.getBlockMarkerRegistry().getRegisteredObjects()) {
+            Component buttonText = Component.text("[" + obj.getTypeID(), DISPLAY_OPTION.colorPalette().HINT())
+                    .append(Component.text(":", DISPLAY_OPTION.colorPalette().HINT()))
+                    .append(Component.text(obj.getID(), DISPLAY_OPTION.colorPalette().SECONDARY()))
+                    .append(Component.text("]", DISPLAY_OPTION.colorPalette().HINT()));
+
+            Button button = Button.create()
+                    .text(buttonText)
+                    .addAction(CustomAction.create(p -> {
+                        clonedContext.put(DIALOG_OBJECT_SELECTOR + "_result", obj.getTypeID() + ":" + obj.getID());
+                        navigate(p, nextDialogPath, clonedContext);
+                    }));
+            question.addButton(button);
+        }
+
+        question.show(player);
+    }
+
+    private void showConfirmDeletionDialog(Player player, Map<String, Object> context) {
+        String purposeContext = context.get("purpose") instanceof String s ? s : "";
+        Map<String, Object> clonedContext = new HashMap<>(context);
+
+        Object selectionResult = context.get(DIALOG_OBJECT_SELECTOR + "_result");
+        IBlockRegestryObject registryObject;
+        Component objectDisplay = Component.empty();
+        if (selectionResult instanceof String s) {
+            String[] split = s.split(":");
+            registryObject = MCCodeCampLib.getBlockMarkerRegistry().findRegisteredObject(split[0], split[1]);
+        } else {
+            registryObject = null;
+        }
+
+        // nullcheck if for some reason the selected object isn't found
+        if (registryObject == null) {
+            sendErrorToPlayer(player, "Received invalid object!");
+            return;
+        }
+
+        if (registryObject instanceof IEditorObjectDescriptor des) {
+            objectDisplay = des.getDisplayName();
+        } else {
+            objectDisplay = Component.text(registryObject.getID());
+        }
+
+        GenericQuestion.create(createGenericQuestionHeader(context, DIALOG_CONFIRM_DELETE + "_message", player)
+                .append(Component.text("Confirm deletion of ", DISPLAY_OPTION.colorPalette().PRIMARY()))
+                .append(objectDisplay))
+                .addButton(actionButton("Confirm", DISPLAY_OPTION.colorPalette().ERROR(), p -> {
+                    removeRegistryEntry(registryObject);
+                    navigate(p, "", Map.ofEntries(Map.entry("home_message", Component.text("Removed object successfully!", DISPLAY_OPTION.colorPalette().SUCCESS()))));
+                }))
+                .addButton(actionButton("Cancel", DISPLAY_OPTION.colorPalette().SUCCESS(), p -> navigate(p, "", Map.ofEntries(Map.entry("home_message", Component.text("Cancelled removal of object", DISPLAY_OPTION.colorPalette().ERROR())))))
+                ).show(player);
+
+    }
+
+    private void removeRegistryEntry(String typeID, String ID) {
+        MCCodeCampLib.getBlockMarkerRegistry().removeObject(typeID, ID);
+    }
+    private void removeRegistryEntry(IBlockRegestryObject obj) {
+        MCCodeCampLib.getBlockMarkerRegistry().removeObject(obj);
+    }
+
 
     private IBlockRegestryObject createNewRegistryEntry(String type, String id, Location location) {
         if (location == null || location.getWorld() == null) {
@@ -338,6 +447,10 @@ public class WorldMarkerEditor extends AEditor {
         new PlayerRequestEditorNavigationEvent(player, target, this, context).callEvent();
     }
 
+    private void sendErrorToPlayer(Player player, String message) {
+        navigate(player, "", Map.ofEntries(Map.entry("home_message", Component.text("ERROR: " + message, NamedTextColor.RED))));
+    }
+
     private Map<String, Object> stripObjectsMeantForDialog(Map<String, Object> context, String dialog_key) {
         Map<String, Object> output = new HashMap<>();
         for (Map.Entry<String, Object> entry : context.entrySet()) {
@@ -348,6 +461,15 @@ public class WorldMarkerEditor extends AEditor {
         return output;
     }
 
+    private Component createGenericQuestionHeader(Map<String, Object> context, String messageKey, Player player) {
+        context.remove("home_message");
+        Component questionHeader = EDITOR_HEADLINE;
+
+        if (context.get("home_message") instanceof Component c) { // append the message line
+            questionHeader.append(c).append(Component.text("\n").style(Style.style()));
+        }
+        return questionHeader;
+    }
 
     @Override
     public void displayDialog(Player player, String path, Map<String, Object> context) {
@@ -359,6 +481,8 @@ public class WorldMarkerEditor extends AEditor {
             case DIALOG_ID_INPUT -> showIDInputDialog(player, context);
             case DIALOG_LOCATION_INPUT_SELECTION -> showLocationInputSelectionDialog(player, context);
             case DIALOG_LOCATION_INPUT_TYPING -> showLocationInputTypingDialog(player, context);
+            case DIALOG_OBJECT_SELECTOR -> showObjectSelectionDialog(player, context);
+            case DIALOG_CONFIRM_DELETE -> showConfirmDeletionDialog(player, context);
             default -> showHomeDialog(player, context);
         }
     }

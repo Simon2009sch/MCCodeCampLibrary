@@ -25,8 +25,6 @@ public abstract class AEditor implements Listener {
     private Set<Player> players = new HashSet<>();
     private Map<UUID, IEditable> editableObjects = new HashMap<>();
 
-    protected HotbarMenu hotbarMenu = null;
-    protected AbstractQuestion<?> question = null;
 
     public AEditor(Plugin plugin) {
         this.plugin = plugin;
@@ -67,9 +65,6 @@ public abstract class AEditor implements Listener {
         if (players.size() == 1) {
             Bukkit.getPluginManager().registerEvents(this, plugin);
         }
-
-        if (hotbarMenu != null) hotbarMenu.show(player);
-        if (question != null) question.show(player, EDITOR_UUID.toString());
     }
 
     protected void leave(Player player) {
@@ -80,8 +75,7 @@ public abstract class AEditor implements Listener {
         if (players.isEmpty()) {
             HandlerList.unregisterAll(this);
         }
-
-        if (hotbarMenu != null) hotbarMenu.exit(player);
+        HotbarMenu.onDisablePlugin();
     }
 
     public UUID getUUID() {
@@ -116,6 +110,10 @@ public abstract class AEditor implements Listener {
                 || event.getUpdateType() == BlockRegistryUpdateEvent.UpdateType.LOAD) {
             addEditableObject(editable);
         }
+    }
+
+    public Set<Player> getPlayers() {
+        return new HashSet<>(players);
     }
 
     protected Plugin getPlugin() {

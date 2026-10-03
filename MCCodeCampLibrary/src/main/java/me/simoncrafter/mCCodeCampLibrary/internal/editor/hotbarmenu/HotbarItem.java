@@ -23,6 +23,7 @@ import java.util.function.Consumer;
 public class HotbarItem implements Listener, Cloneable {
 
     private final NamespacedKey ITEM_KEY;
+    private final NamespacedKey ITEM_DEBOUNCE_TIMESTAMP;
 
     private Plugin plugin;
     private UUID uuid;
@@ -39,6 +40,7 @@ public class HotbarItem implements Listener, Cloneable {
         this.uuid = UUID.randomUUID();
 
         ITEM_KEY = new NamespacedKey(plugin, "editor_hotbaritem");
+        ITEM_DEBOUNCE_TIMESTAMP = new NamespacedKey(plugin, "editor_item_debounce_timestamp");
 
         setItem(item);
     }
@@ -54,9 +56,11 @@ public class HotbarItem implements Listener, Cloneable {
         this.unHoverActions = unHoverActions;
 
         ITEM_KEY = new NamespacedKey(plugin, "editor_hotbaritem");
+        ITEM_DEBOUNCE_TIMESTAMP = new NamespacedKey(plugin, "editor_item_debounce_timestamp");
 
         setItem(item);
     }
+    
 
     /**
      * @return the item bound to this HotbarItem.
@@ -255,7 +259,7 @@ public class HotbarItem implements Listener, Cloneable {
         PlayerInventory playerInv = player.getInventory();
 
         ItemStack heldItem = playerInv.getItem(playerInv.getHeldItemSlot());
-        if (!isItem(heldItem)) {
+        if (!isItem(heldItem) || player.getPersistentDataContainer().getOrDefault(ITEM_DEBOUNCE_TIMESTAMP, PersistentDataType.INTEGER, 0) + 1 >= Bukkit.getCurrentTick()) {
             return;
         }
         event.setCancelled(true);
@@ -267,6 +271,7 @@ public class HotbarItem implements Listener, Cloneable {
         if (event.getAction() == Action.PHYSICAL) {
             return;
         }
+        player.getPersistentDataContainer().set(ITEM_DEBOUNCE_TIMESTAMP, PersistentDataType.INTEGER, Bukkit.getCurrentTick());
         blockClickActions.forEach(a -> a.accept(event));
     }
 
@@ -300,7 +305,7 @@ public class HotbarItem implements Listener, Cloneable {
 
     private boolean isItem(ItemStack item) {
         if (item == null) return false;
-        return item.getPersistentDataContainer().has(ITEM_KEY, PersistentDataType.STRING) && item.getPersistentDataContainer().get(ITEM_KEY, PersistentDataType.STRING).equals(uuid.toString());
+        return item.getPersistentDataContainer().has(ITEM_KEY, PersistentDataType.STRING) && item.getPersistentDataContainer().getOrDefault(ITEM_KEY, PersistentDataType.STRING, "").equals(uuid.toString());
     }
 
     @Override

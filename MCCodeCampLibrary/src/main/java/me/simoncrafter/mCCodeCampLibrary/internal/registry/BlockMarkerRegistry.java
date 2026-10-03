@@ -379,7 +379,7 @@ public class BlockMarkerRegistry implements Listener {
         }
     }
 
-    private void removeObject(String type, String id) {
+    public void removeObject(String type, String id) {
         Map<String, IBlockRegestryObject> objectsOfType = registeredObjects.get(type);
         if (objectsOfType != null) {
             IBlockRegestryObject removed = objectsOfType.remove(id);

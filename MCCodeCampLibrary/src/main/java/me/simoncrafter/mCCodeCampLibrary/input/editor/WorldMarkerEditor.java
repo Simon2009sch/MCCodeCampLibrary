@@ -434,7 +434,7 @@ public class WorldMarkerEditor extends AEditor {
         }
 
         if (registryObject instanceof IEditorObjectDescriptor des) {
-            objectDisplay = des.getDisplayName();
+            objectDisplay = MiniMessage.miniMessage().deserialize(des.getDisplayName());
         } else {
             objectDisplay = Component.text(registryObject.getID());
         }

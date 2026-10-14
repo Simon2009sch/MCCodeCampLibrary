@@ -69,8 +69,8 @@ public class MCCodeCampLib {
         blockMarkerRegistry.registerObjectType(
                 "button",
                 new StyledRegistryObjectType(ActivationButton::new, "button", Map.ofEntries(
-                        Map.entry("displayname", Component.text("Button")),
-                        Map.entry("description", Component.text("Creates a new button usable in code"))
+                        Map.entry("displayname", "Button"),
+                        Map.entry("description", "Creates a new button usable in code")
                 ))
         );
         for (World w : Bukkit.getWorlds()) {

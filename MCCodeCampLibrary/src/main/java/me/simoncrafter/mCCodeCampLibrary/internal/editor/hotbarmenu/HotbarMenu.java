@@ -20,6 +20,7 @@ import org.bukkit.plugin.Plugin;
 
 import java.util.*;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 public class HotbarMenu implements Listener {
 
@@ -29,7 +30,11 @@ public class HotbarMenu implements Listener {
     private final NamespacedKey PLAYER_HOTBAR_SAVE_TAG;
 
 
-    private record PlayerSessionData(int page) {};
+    private record PlayerSessionData(int page) {
+        public PlayerSessionData withPage(int page) {
+            return new PlayerSessionData(page);
+        }
+    };
 
     private Plugin plugin;
 
@@ -61,6 +66,11 @@ public class HotbarMenu implements Listener {
     }
 
     public void setItemAt(int index, HotbarItem item) {
+        if (index-items.size() >= 0) {
+            for (int i = 0; i < index-items.size(); i++) {
+                items.add(new HotbarItem(plugin, new ItemStack(Material.DIRT)));
+            }
+        }
         items.set(index, item.clone());
     }
 
@@ -69,10 +79,11 @@ public class HotbarMenu implements Listener {
             saveHotbar(player);
             player.getPersistentDataContainer().set(PLAYER_TAG, PersistentDataType.STRING, uuid.toString());
         }
+        players.getOrDefault(player, new PlayerSessionData(0)).withPage(page);
         for (HotbarMenu m : instances) {
             m.onMenuChange(player);
         }
-        for (int i = 0; i < items.size(); i++) {
+        for (int i = page*9; i < items.size(); i++) {
             if (items.get(i) == null) {
                 player.getInventory().setItem(i, new ItemStack(Material.AIR));
                 continue;
@@ -225,6 +236,31 @@ public class HotbarMenu implements Listener {
         return hItem;
     }
 
+    /**
+     * Creates a {@link HotbarItem} that changes the players displayed page to the returned number.
+     * @param item The item that should be displayed
+     * @param pageNumber The inputted integer is the current one and the one that is returned is the page the player
+     *                   gets displayed
+     * @return The Item
+     */
+    public HotbarItem createPageChangeItem(ItemStack item, Function<Integer, Integer> pageNumber) {
+        HotbarItem hotbarItem = new HotbarItem(plugin, item);
+        hotbarItem.addBlockClickAction(e -> {
+            this.show(e.getPlayer(), pageNumber.apply(players.getOrDefault(e.getPlayer(), new PlayerSessionData(0)).page()));
+        });
+        return hotbarItem;
+    }
+
+    /**
+     * See {@link HotbarMenu#createPageChangeItem(ItemStack, int)} for more info. This is basicly the same, but you just
+     * pass in the target page number
+     * @param item Display item
+     * @param pageNumber Target page
+     * @return The created hotbar item.
+     */
+    public HotbarItem createPageChangeItem(ItemStack item, int pageNumber) {
+        return createPageChangeItem(item, i -> {return pageNumber;});
+    }
 
 
     @EventHandler

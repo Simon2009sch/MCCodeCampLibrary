@@ -98,6 +98,10 @@ public class EditorManager implements Listener {
         return editorId != null && setEditor(player, editorId);
     }
 
+    public boolean isInEditor(Player player) {
+        return sessionFor(player).getCurrentEditor() != null;
+    }
+
     public void leaveEditor(Player player) {
         EditorSession session = sessions.remove(player.getUniqueId());
         if (session != null) session.setEditor(null);

@@ -28,11 +28,14 @@ public class HotbarMenu implements Listener {
     private final NamespacedKey PLAYER_TAG;
     private final NamespacedKey PLAYER_HOTBAR_SAVE_TAG;
 
+
+    private record PlayerSessionData(int page) {};
+
     private Plugin plugin;
 
     private UUID uuid;
-    private List<Player> players = new ArrayList<>();
-    private HotbarItem[] items = new HotbarItem[9];
+    private Map<Player, PlayerSessionData> players = new HashMap<>();
+    private List<HotbarItem> items = new ArrayList<>();
     private Set<Consumer<InventoryScrollEvent>> scrollActions = new HashSet<>();
     private Set<UUID> suppressedHeldSlotChanges = new HashSet<>();
 
@@ -58,10 +61,10 @@ public class HotbarMenu implements Listener {
     }
 
     public void setItemAt(int index, HotbarItem item) {
-        items[index] = item.clone();
+        items.set(index, item.clone());
     }
 
-    public void show(Player player) {
+    public void show(Player player, int page) {
         if (!player.getPersistentDataContainer().has(PLAYER_TAG)) {
             saveHotbar(player);
             player.getPersistentDataContainer().set(PLAYER_TAG, PersistentDataType.STRING, uuid.toString());
@@ -69,17 +72,21 @@ public class HotbarMenu implements Listener {
         for (HotbarMenu m : instances) {
             m.onMenuChange(player);
         }
-        for (int i = 0; i < items.length; i++) {
-            if (items[i] == null) {
+        for (int i = 0; i < items.size(); i++) {
+            if (items.get(i) == null) {
                 player.getInventory().setItem(i, new ItemStack(Material.AIR));
                 continue;
             };
-            Bukkit.getPluginManager().registerEvents(items[i], plugin);
-            player.getInventory().setItem(i, items[i].getItem());
+            Bukkit.getPluginManager().registerEvents(items.get(i), plugin);
+            player.getInventory().setItem(i, items.get(i).getItem());
         }
         Bukkit.getPluginManager().registerEvents(this, plugin);
-        players.add(player);
+        players.put(player, new PlayerSessionData(page));
         instances.add(this);
+    }
+
+    public void show(Player player) {
+        show(player, 0);
     }
 
     /**
@@ -91,7 +98,7 @@ public class HotbarMenu implements Listener {
     }
 
     public void exit(Player player) {
-        if (!players.contains(player)) return;
+        if (!players.containsKey(player)) return;
         if (player.getPersistentDataContainer().has(PLAYER_TAG)) {
             reloadHotbar(player);
             player.getPersistentDataContainer().remove(PLAYER_TAG);
@@ -102,7 +109,7 @@ public class HotbarMenu implements Listener {
 
     public static void onDisablePlugin() {
         for (HotbarMenu m : instances) {
-            for (Player player : m.players) {
+            for (Player player : m.players.keySet()) {
                 m.exit(player);
             }
         }
@@ -113,7 +120,7 @@ public class HotbarMenu implements Listener {
     }
 
     private void onPlayerForeClose(Player player) {
-        if (players.contains(player)) {
+        if (players.containsKey(player)) {
             exit(player);
         }
     }
@@ -222,19 +229,19 @@ public class HotbarMenu implements Listener {
 
     @EventHandler
     public void onInventoryPickupItem(InventoryPickupItemEvent event) {
-        if (event.getInventory().getHolder() instanceof Player player && players.contains(player)) {
+        if (event.getInventory().getHolder() instanceof Player player && players.containsKey(player)) {
             event.setCancelled(true);
         }
     }
 
     @EventHandler
     public void onPlayerDropItem(PlayerDropItemEvent event) {
-        if (players.contains(event.getPlayer())) event.setCancelled(true);
+        if (players.containsKey(event.getPlayer())) event.setCancelled(true);
     }
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
-        if (event.getInventory().getHolder() instanceof Player player && players.contains(player)) {
+        if (event.getInventory().getHolder() instanceof Player player && players.containsKey(player)) {
             event.setCancelled(true);
         }
     }
@@ -242,15 +249,15 @@ public class HotbarMenu implements Listener {
     @EventHandler
     public void onPlayerItemHeld(PlayerItemHeldEvent event) {
         Player player = event.getPlayer();
-        if (!players.contains(player) || suppressedHeldSlotChanges.contains(player.getUniqueId())) {
+        if (!players.containsKey(player) || suppressedHeldSlotChanges.contains(player.getUniqueId())) {
             suppressedHeldSlotChanges.remove(player.getUniqueId());
             return;
         }
-        if (items[event.getNewSlot()] != null) {
-            items[event.getNewSlot()].onHover(event.getPlayer());
+        if (items.get(event.getNewSlot()) != null) {
+            items.get(event.getNewSlot()).onHover(event.getPlayer());
         }
-        if (items[event.getPreviousSlot()] != null) {
-            items[event.getPreviousSlot()].onUnHover(event.getPlayer());
+        if (items.get(event.getPreviousSlot()) != null) {
+            items.get(event.getPreviousSlot()).onUnHover(event.getPlayer());
         }
 
 
@@ -284,6 +291,6 @@ public class HotbarMenu implements Listener {
 
     @EventHandler
     public void onPlayerPickBlock(PlayerPickBlockEvent event) {
-        if (players.contains(event.getPlayer())) event.setCancelled(true);
+        if (players.containsKey(event.getPlayer())) event.setCancelled(true);
     }
 }

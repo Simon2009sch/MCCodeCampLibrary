@@ -7,15 +7,23 @@ public interface IEditorObjectDescriptor {
     /**
      * @return Returns the description of this object
      */
-    default Component getDescription() {
+    default String getDescription() {
         return getDisplayKey("description");
     }
 
     /**
      * @return Returns the displayname this object should be seen under in editors
      */
-    default Component getDisplayName() {
+    default String getDisplayName() {
         return getDisplayKey("displayname");
+    }
+
+
+    /**
+     * @return Returns the item id (e.g. minecraft:dirt) for displaying
+     */
+    default String getDisplayItem() {
+        return getDisplayKey("displayItem");
     }
 
     /**
@@ -23,5 +31,5 @@ public interface IEditorObjectDescriptor {
      * @param key The "search query"
      * @return The text component that was found. If not found, returns empty string
      */
-    @NotNull Component getDisplayKey(String key);
+    @NotNull String getDisplayKey(String key);
 }

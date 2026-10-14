@@ -14,24 +14,24 @@ import java.util.concurrent.Callable;
  */
 public class StyledRegistryObjectType extends RegistryObjectType implements IEditorObjectDescriptor {
 
-    private Map<String, Component> displayValues;
+    private Map<String, String> displayValues;
 
     @Override
-    public @NotNull Component getDisplayKey(String key) {
-        return displayValues.getOrDefault(key, Component.empty());
+    public @NotNull String getDisplayKey(String key) {
+        return displayValues.getOrDefault(key, "Component.empty()");
     }
 
-    public StyledRegistryObjectType(Callable<IBlockRegestryObject> createObjectAction, String typeID, Map<String, Component> displayValues) {
+    public StyledRegistryObjectType(Callable<IBlockRegestryObject> createObjectAction, String typeID, Map<String, String> displayValues) {
         super(createObjectAction, typeID);
         this.displayValues = displayValues;
     }
 
 
-    public Map<String, Component> getDisplayValues() {
+    public Map<String, String> getDisplayValues() {
         return displayValues;
     }
 
-    public void setDisplayValues(Map<String, Component> displayValues) {
+    public void setDisplayValues(Map<String, String> displayValues) {
         this.displayValues = displayValues;
     }
 }

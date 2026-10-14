@@ -25,6 +25,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.Style;
 import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.FluidCollisionMode;
@@ -180,37 +181,77 @@ public class WorldMarkerEditor extends AEditor {
 
     private void showTypeSelectionDialog(Player player, Map<String, Object> context) {
         GenericQuestion question = GenericQuestion.create(createGenericQuestionHeader(context, DIALOG_TYPE_SELECTOR + "_message", player).append(Component.text("Please select a object type:", DISPLAY_OPTION.colorPalette().PRIMARY())));
+        HotbarMenu hotbarMenu = new HotbarMenu(getPlugin());
         Map<String, Object> clonedContext = new HashMap<>(context);
         String purposeContext = clonedContext.get("purpose") instanceof String s ? s : ""; // set to the extracted purpose or set to empty string
+
+        int hotbarPage = clonedContext.get("!" + DIALOG_TYPE_SELECTOR + "_hotbarPage") instanceof Integer s ? s : 0;
 
         String nextDialogPath = switch (purposeContext) {
             case "object_creation" -> DIALOG_ID_INPUT;
             default -> "";
         };
 
+        int hotbarIndex = 0;
 
         for (Map.Entry<String, RegistryObjectType> entry : MCCodeCampLib.getBlockMarkerRegistry().getObjectTypes().entrySet()) {
 
             Button button = Button.create() // create a button with a action that sends the player to the next dialog with the added context of what was selected
                     .addAction(CustomAction.create(p -> {
+                        clonedContext.remove("!" + DIALOG_TYPE_SELECTOR + "_hotbarPage");
                         clonedContext.put(DIALOG_TYPE_SELECTOR + "_result", entry.getValue().getTypeID());
                     }))
                     .addAction(navigateAction(nextDialogPath, clonedContext));
 
+            Material material = null;
+            Component hoverText = null;
+            Component name = null;
+
             // get the displayname if available or default to ID
             if (entry.getValue() instanceof StyledRegistryObjectType styled) {
-                button.text(styled.getDisplayName());
-                if (!PlainTextComponentSerializer.plainText().serialize(styled.getDescription()).isEmpty()) {
-                    button.hoverText(styled.getDescription());
+                name = MiniMessage.miniMessage().deserialize(styled.getDisplayName());
+                if (!styled.getDescription().isEmpty()) {
+                    hoverText = MiniMessage.miniMessage().deserialize(styled.getDescription());
                 }
+                if (!styled.getDisplayItem().isEmpty()) {
+                    material = Material.getMaterial(styled.getDisplayItem());
+                }
+
             } else {
-                button.text(Component.text(entry.getValue().getTypeID()));
+                name = Component.text(entry.getValue().getTypeID());
             }
+
+            if (material == null) {
+                material = Material.STICK;
+            }
+
+            // create display item for hotbar
+            ItemStack item = new ItemStack(material);
+            ItemMeta meta = item.getItemMeta();
+
+            button.text(name);
+            meta.displayName(name);
+
+            // enshure variables are set and only set in button if they exist
+            if (hoverText != null) {
+                button.hoverText(hoverText);
+                meta.lore(List.of(hoverText));
+            }
+
+            item.setItemMeta(meta);
+            HotbarItem hItem = new HotbarItem(getPlugin(), item);
+            hItem.addBlockClickAction(e -> {
+                clonedContext.remove("!" + DIALOG_TYPE_SELECTOR + "_hotbarPage");
+                clonedContext.put(DIALOG_TYPE_SELECTOR + "_result", entry.getValue().getTypeID());
+                navigate(e.getPlayer(), nextDialogPath, clonedContext);
+            });
+
+            hotbarMenu.setItemAt(hotbarIndex, hItem);
+
 
 
             question.addButton(button);
         }
-        if (context.containsKey("!" + DIALOG_TYPE_SELECTOR + "_show_home_button")) question.addButton(homeButton());
         question.show(player);
     }
 

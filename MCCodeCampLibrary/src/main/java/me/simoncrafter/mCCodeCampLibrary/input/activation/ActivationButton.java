@@ -50,9 +50,9 @@ public class ActivationButton implements IBlockRegestryObject, Listener, IEditab
     private Plugin plugin;
 
     //editor object descriptor
-    private final Map<String, Component> DESCRIPTOR_MAP = Map.ofEntries(
-            Map.entry("description", Component.text("A button")),
-            Map.entry("displayname", Component.text("Button")));
+    private final Map<String, String> DESCRIPTOR_MAP = Map.ofEntries(
+            Map.entry("description", "A button able to be used in code"),
+            Map.entry("displayname", "Button"));
 
     //object related
     private Location location;
@@ -368,7 +368,7 @@ public class ActivationButton implements IBlockRegestryObject, Listener, IEditab
     }
 
     @Override
-    public @NotNull Component getDisplayKey(String key) {
+    public @NotNull String getDisplayKey(String key) {
         return DESCRIPTOR_MAP.get(key);
     }
 }

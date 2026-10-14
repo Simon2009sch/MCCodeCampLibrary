@@ -5,6 +5,7 @@ import me.simoncrafter.mCCodeCampLibrary.internal.editor.events.EditorTerminateE
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.events.PlayerClickEditableObjectEvent;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.hotbarmenu.HotbarMenu;
 import me.simoncrafter.mCCodeCampLibrary.internal.registry.events.BlockRegistryUpdateEvent;
+import me.simoncrafter.mCCodeCampLibrary.utility.MCCodeCampLib;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -71,11 +72,16 @@ public abstract class AEditor implements Listener {
         players.remove(player);
         editableObjects.forEach((u, e) -> e.hideFor(player));
 
+        // clear chat and restore player hotbar
+        HotbarMenu.forceCloseDialog(player);
+        if (!MCCodeCampLib.getEditorManager().isInEditor(player)) {
+            player.sendMessage(Component.text("\n".repeat(100)));
+        }
+
         // on last player
         if (players.isEmpty()) {
             HandlerList.unregisterAll(this);
         }
-        HotbarMenu.onDisablePlugin();
     }
 
     public UUID getUUID() {

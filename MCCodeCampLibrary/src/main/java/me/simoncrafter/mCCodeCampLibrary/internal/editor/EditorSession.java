@@ -31,7 +31,7 @@ public class EditorSession {
     }
 
     private AEditor pop(boolean skipDisplay) {
-        EditorFrame frame = editorStack.poll();
+        EditorFrame frame = editorStack.poll(); // poll is pop but returns null if DQueue is empty
         if (frame == null) return null;
         removePlayerFromEditorFrame(player, frame);
 

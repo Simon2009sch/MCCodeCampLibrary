@@ -7,11 +7,13 @@ import me.simoncrafter.mCCodeCampLibrary.input.activation.ActivationButton;
 import me.simoncrafter.mCCodeCampLibrary.input.editor.WorldMarkerEditor;
 import me.simoncrafter.mCCodeCampLibrary.internal.activation.StyledRegistryObjectType;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.EditorManager;
+import me.simoncrafter.mCCodeCampLibrary.internal.editor.hotbarmenu.HotbarItem;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.hotbarmenu.HotbarMenu;
 import me.simoncrafter.mCCodeCampLibrary.internal.registry.BlockMarkerRegistry;
 import me.simoncrafter.mCCodeCampLibrary.internal.Listeners;
 import me.simoncrafter.mCCodeCampLibrary.internal.activation.ActivationListeners;
 import me.simoncrafter.mCCodeCampLibrary.internal.activation.RegionActivationHandler;
+import me.simoncrafter.mCCodeCampLibrary.internal.registry.IBlockRegestryObject;
 import me.simoncrafter.mCCodeCampLibrary.obstical.AOpenableObject;
 import net.kyori.adventure.text.Component;
 import org.bukkit.*;
@@ -66,12 +68,14 @@ public class MCCodeCampLib {
         }
         MCCodeCampLib.plugin = plugin;
         MCCodeCampLib.blockMarkerRegistry = new BlockMarkerRegistry(plugin);
+        StyledRegistryObjectType buttonType = new StyledRegistryObjectType(ActivationButton::new, "button", Map.ofEntries(
+                Map.entry("displayname", "Button"),
+                Map.entry("description", "Creates a new button usable in code"),
+                Map.entry("displayItem", "minecraft:oak_button")
+        ));
+        buttonType.setAllowMultipleOfSameID(true);
         blockMarkerRegistry.registerObjectType(
-                "button",
-                new StyledRegistryObjectType(ActivationButton::new, "button", Map.ofEntries(
-                        Map.entry("displayname", "Button"),
-                        Map.entry("description", "Creates a new button usable in code")
-                ))
+                "button", buttonType
         );
         for (World w : Bukkit.getWorlds()) {
             for (Chunk c : w.getLoadedChunks()) {
@@ -89,6 +93,7 @@ public class MCCodeCampLib {
         registerEventListeners(plugin);
         PluginHolder.setPlugin((JavaPlugin) plugin);
         InstanceData.setPlugin(plugin);
+        HotbarMenu.onPluginLoad(plugin);
 
         //remove all old displays
         for (World w : Bukkit.getWorlds()) {

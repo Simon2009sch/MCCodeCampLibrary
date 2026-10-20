@@ -4,9 +4,11 @@ import io.papermc.paper.event.player.PrePlayerAttackEntityEvent;
 import net.kyori.adventure.text.Component;
 import org.apache.logging.log4j.util.TriConsumer;
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
@@ -23,8 +25,9 @@ import java.util.function.Consumer;
 
 public class HotbarItem implements Listener, Cloneable {
 
-    private final NamespacedKey ITEM_KEY;
-    private final NamespacedKey ITEM_DEBOUNCE_TIMESTAMP;
+    public static final NamespacedKey ITEM_KEY = new NamespacedKey("me.simoncrafter.mccodecamplibrary", "editor_hotbaritem");
+    public static final NamespacedKey ITEM_DEBOUNCE_TIMESTAMP = new NamespacedKey("me.simoncrafter.mccodecamplibrary", "editor_item_debounce_timestamp");
+    private static final int ITEM_DEBOUNCE_TIME = 1;
 
     private Plugin plugin;
     private UUID uuid;
@@ -36,12 +39,12 @@ public class HotbarItem implements Listener, Cloneable {
     private Set<Consumer<Player>> hoverActions = new HashSet<>();
     private Set<Consumer<Player>> unHoverActions = new HashSet<>();
 
+    private int numberOfCurrentUsages = 0;
+    private Set<Player> debouncePlayerList = new HashSet<>(); // the internal alternative to the global debounce so an action that happens in the hotbarmenu and doesn't change the menu
+
     public HotbarItem(Plugin plugin, ItemStack item) {
         this.plugin = plugin;
         this.uuid = UUID.randomUUID();
-
-        ITEM_KEY = new NamespacedKey(plugin, "editor_hotbaritem");
-        ITEM_DEBOUNCE_TIMESTAMP = new NamespacedKey(plugin, "editor_item_debounce_timestamp");
 
         setItem(item);
     }
@@ -56,12 +59,40 @@ public class HotbarItem implements Listener, Cloneable {
         this.hoverActions = hoverActions;
         this.unHoverActions = unHoverActions;
 
-        ITEM_KEY = new NamespacedKey(plugin, "editor_hotbaritem");
-        ITEM_DEBOUNCE_TIMESTAMP = new NamespacedKey(plugin, "editor_item_debounce_timestamp");
-
         setItem(item);
     }
-    
+
+    /**
+     * Should be called when the hotbar item is put into a players hotbar. This method adds one to the internal usages counter. If it reaches 0 item will perform cleanup. For removing from this counter see {@link #onItemNoLongerInUse()}<br>
+     * Also applies a small debounce time onto the player so if the menu change was triggered by a ingame event like clicking a block it doesn't trigger the next item immediately.
+     */
+    public void onItemPutInHotbar(Player player) {
+        if (item.getType() == Material.AIR) return;
+        player.getPersistentDataContainer().set(ITEM_DEBOUNCE_TIMESTAMP, PersistentDataType.INTEGER, Bukkit.getCurrentTick());
+        Bukkit.getPluginManager().registerEvents(this, plugin);
+        numberOfCurrentUsages++;
+    }
+
+    /**
+     * Removes one from the internal counter of usages. When it reaches 0 item will unregister all listeners and perform a cleanup. See {@link #onItemPutInHotbar(Player)} for adding to this counter and also setting a debounce timeout for the player
+     */
+    public void onItemNoLongerInUse() {
+        numberOfCurrentUsages--;
+        if (numberOfCurrentUsages <= 0) {
+            HandlerList.unregisterAll(this);
+        }
+    }
+
+    /**
+     * Called once the plugin loads. In normal circumstances no players would be online, but in testing or on a reload the timestamps need to be cleared.
+     * @param plugin The plugin instance
+     */
+    public static void onPluginLoad(Plugin plugin) {
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            player.getPersistentDataContainer().remove(ITEM_DEBOUNCE_TIMESTAMP);
+        }
+    }
+
 
     /**
      * @return the item bound to this HotbarItem.
@@ -259,8 +290,9 @@ public class HotbarItem implements Listener, Cloneable {
         Player player = event.getPlayer();
         PlayerInventory playerInv = player.getInventory();
 
+
         ItemStack heldItem = playerInv.getItem(playerInv.getHeldItemSlot());
-        if (!isItem(heldItem) || player.getPersistentDataContainer().getOrDefault(ITEM_DEBOUNCE_TIMESTAMP, PersistentDataType.INTEGER, 0) + 1 >= Bukkit.getCurrentTick()) {
+        if (!isItem(heldItem) || player.getPersistentDataContainer().getOrDefault(ITEM_DEBOUNCE_TIMESTAMP, PersistentDataType.INTEGER, 0) + ITEM_DEBOUNCE_TIME >= Bukkit.getCurrentTick()) {
             return;
         }
         event.setCancelled(true);
@@ -272,7 +304,6 @@ public class HotbarItem implements Listener, Cloneable {
         if (event.getAction() == Action.PHYSICAL) {
             return;
         }
-        player.getPersistentDataContainer().set(ITEM_DEBOUNCE_TIMESTAMP, PersistentDataType.INTEGER, Bukkit.getCurrentTick());
         blockClickActions.forEach(a -> a.accept(event));
     }
 
@@ -280,9 +311,6 @@ public class HotbarItem implements Listener, Cloneable {
     public void onPlayerInteractEntity(PlayerInteractEntityEvent event) {
         Player player = event.getPlayer();
         PlayerInventory playerInv = player.getInventory();
-
-        Bukkit.broadcast(Component.text("Ckick"));
-
 
         ItemStack heldItem = playerInv.getItem(playerInv.getHeldItemSlot());
         if (!isItem(heldItem)) {

@@ -45,6 +45,10 @@ public class HotbarMenu implements Listener {
     private Set<Consumer<InventoryScrollEvent>> scrollActions = new HashSet<>();
     private Set<UUID> suppressedHeldSlotChanges = new HashSet<>();
 
+    public static void onPluginLoad(Plugin plugin) {
+        HotbarItem.onPluginLoad(plugin);
+    }
+
     /**
      * The direction a player scrolled their hotbar selection in.
      */
@@ -71,7 +75,7 @@ public class HotbarMenu implements Listener {
             throw new IllegalArgumentException("Hotbar item index cannot be negative: " + index);
         }
         while (items.size() <= index) {
-            items.add(new HotbarItem(plugin, new ItemStack(Material.DIRT)));
+            items.add(null);
         }
         items.set(index, item.clone());
     }
@@ -95,7 +99,7 @@ public class HotbarMenu implements Listener {
                 player.getInventory().setItem(slot, new ItemStack(Material.AIR));
                 continue;
             }
-            Bukkit.getPluginManager().registerEvents(item, plugin);
+            item.onItemPutInHotbar(player);
             player.getInventory().setItem(slot, item.getItem());
         }
         Bukkit.getPluginManager().registerEvents(this, plugin);
@@ -148,7 +152,7 @@ public class HotbarMenu implements Listener {
             instances.remove(this);
             for (HotbarItem item : items) {
                 if (item == null) continue;
-                HandlerList.unregisterAll(item);
+                item.onItemNoLongerInUse();
             }
             HandlerList.unregisterAll(this);
         }

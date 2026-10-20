@@ -326,10 +326,15 @@ public class BlockMarkerRegistry implements Listener {
      * object failed to construct.
      */
     public @Nullable IBlockRegestryObject createObject(String typeID, String id, Location location) {
-        if (id == null || id.isBlank() || hasObject(typeID, id)) return null;
+        if (id == null || id.isBlank()) return null;
         RegistryObjectType objectType = objectTypes.get(typeID);
         if (objectType == null) {
             PLUGIN_LOGGER.warning("Cannot create marker: unrecognized type \"" + typeID + "\"");
+            return null;
+        }
+
+        if (!objectType.allowMultipleOfSameID() && hasObject(typeID, id)) {
+            PLUGIN_LOGGER.warning("Refusing to create marker: Object type doesn't allow multiple objects with same ID!");
             return null;
         }
 

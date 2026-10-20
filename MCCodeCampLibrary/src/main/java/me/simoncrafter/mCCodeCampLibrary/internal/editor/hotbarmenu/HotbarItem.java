@@ -1,6 +1,7 @@
 package me.simoncrafter.mCCodeCampLibrary.internal.editor.hotbarmenu;
 
 import io.papermc.paper.event.player.PrePlayerAttackEntityEvent;
+import net.kyori.adventure.text.Component;
 import org.apache.logging.log4j.util.TriConsumer;
 import org.bukkit.Bukkit;
 import org.bukkit.NamespacedKey;
@@ -280,6 +281,9 @@ public class HotbarItem implements Listener, Cloneable {
         Player player = event.getPlayer();
         PlayerInventory playerInv = player.getInventory();
 
+        Bukkit.broadcast(Component.text("Ckick"));
+
+
         ItemStack heldItem = playerInv.getItem(playerInv.getHeldItemSlot());
         if (!isItem(heldItem)) {
             return;
@@ -293,6 +297,7 @@ public class HotbarItem implements Listener, Cloneable {
     public void onPrePlayerAttackEntity(PrePlayerAttackEntityEvent event) {
         Player player = event.getPlayer();
         PlayerInventory playerInv = player.getInventory();
+
 
         ItemStack heldItem = playerInv.getItem(playerInv.getHeldItemSlot());
         if (!isItem(heldItem)) {

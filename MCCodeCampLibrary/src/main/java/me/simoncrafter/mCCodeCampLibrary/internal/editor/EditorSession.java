@@ -166,4 +166,10 @@ public class EditorSession {
         return frame.getDialogPath();
     }
 
+    Map<String, Object> getDialogContext() {
+        EditorFrame frame = editorStack.peek();
+        if (frame == null) return Map.of();
+        return new HashMap<>(frame.getDialogContext());
+    }
+
 }

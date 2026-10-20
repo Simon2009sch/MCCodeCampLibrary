@@ -1,6 +1,7 @@
 package me.simoncrafter.mCCodeCampLibrary.internal.editor.hotbarmenu;
 
 import io.papermc.paper.event.player.PlayerPickBlockEvent;
+import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -66,10 +67,11 @@ public class HotbarMenu implements Listener {
     }
 
     public void setItemAt(int index, HotbarItem item) {
-        if (index-items.size() >= 0) {
-            for (int i = 0; i < index-items.size(); i++) {
-                items.add(new HotbarItem(plugin, new ItemStack(Material.DIRT)));
-            }
+        if (index < 0) {
+            throw new IllegalArgumentException("Hotbar item index cannot be negative: " + index);
+        }
+        while (items.size() <= index) {
+            items.add(new HotbarItem(plugin, new ItemStack(Material.DIRT)));
         }
         items.set(index, item.clone());
     }
@@ -79,20 +81,25 @@ public class HotbarMenu implements Listener {
             saveHotbar(player);
             player.getPersistentDataContainer().set(PLAYER_TAG, PersistentDataType.STRING, uuid.toString());
         }
-        players.getOrDefault(player, new PlayerSessionData(0)).withPage(page);
+
+        int pageCount = Math.max(1, (items.size() + 8) / 9);
+        int normalizedPage = Math.max(0, Math.min(page, pageCount - 1));
         for (HotbarMenu m : instances) {
             m.onMenuChange(player);
         }
-        for (int i = page*9; i < items.size(); i++) {
-            if (items.get(i) == null) {
-                player.getInventory().setItem(i, new ItemStack(Material.AIR));
+
+        for (int slot = 0; slot < 9; slot++) {
+            int itemIndex = normalizedPage * 9 + slot;
+            HotbarItem item = itemIndex < items.size() ? items.get(itemIndex) : null;
+            if (item == null) {
+                player.getInventory().setItem(slot, new ItemStack(Material.AIR));
                 continue;
-            };
-            Bukkit.getPluginManager().registerEvents(items.get(i), plugin);
-            player.getInventory().setItem(i, items.get(i).getItem());
+            }
+            Bukkit.getPluginManager().registerEvents(item, plugin);
+            player.getInventory().setItem(slot, item.getItem());
         }
         Bukkit.getPluginManager().registerEvents(this, plugin);
-        players.put(player, new PlayerSessionData(page));
+        players.put(player, new PlayerSessionData(normalizedPage));
         instances.add(this);
     }
 
@@ -289,11 +296,14 @@ public class HotbarMenu implements Listener {
             suppressedHeldSlotChanges.remove(player.getUniqueId());
             return;
         }
-        if (items.get(event.getNewSlot()) != null) {
-            items.get(event.getNewSlot()).onHover(event.getPlayer());
+        int pageOffset = players.get(player).page() * 9;
+        int newItemIndex = pageOffset + event.getNewSlot();
+        int previousItemIndex = pageOffset + event.getPreviousSlot();
+        if (newItemIndex < items.size() && items.get(newItemIndex) != null) {
+            items.get(newItemIndex).onHover(event.getPlayer());
         }
-        if (items.get(event.getPreviousSlot()) != null) {
-            items.get(event.getPreviousSlot()).onUnHover(event.getPlayer());
+        if (previousItemIndex < items.size() && items.get(previousItemIndex) != null) {
+            items.get(previousItemIndex).onUnHover(event.getPlayer());
         }
 
 

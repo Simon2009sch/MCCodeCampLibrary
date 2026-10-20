@@ -140,10 +140,20 @@ public class EditorManager implements Listener {
         return session == null ? null : session.getPlayerSelection();
     }
 
-    @Nullable
-    public AEditor getPlayersCurrentEditor(Player player) {
+    public @Nullable AEditor getPlayersCurrentEditor(Player player) {
         EditorSession session = sessions.get(player.getUniqueId());
         return session == null ? null : session.getCurrentEditor();
+    }
+
+    @Nullable
+    public String getPlayersCurrentDialogPath(Player player) {
+        EditorSession session = sessions.get(player.getUniqueId());
+        return session == null ? null : session.getDialogPath();
+    }
+
+    public Map<String, Object> getPlayersCurrentDialogContext(Player player) {
+        EditorSession session = sessions.get(player.getUniqueId());
+        return session == null ? Map.of() : session.getDialogContext();
     }
 
     @Nullable

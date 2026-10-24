@@ -1,37 +1,43 @@
-# Test-plugin remote deployment
+# Calagopus test-plugin deployment
 
-This is a per-developer development-machine workflow. It is not required for normal library builds and must never contain committed credentials.
+`deploy-local.py` is tracked and credential-free. Configure variables in the IntelliJ **Maven run configuration**, not in source code. The launcher uses only Python's standard library (`python` on Windows; `python3` on Unix/WSL).
 
-## Recommended Windows/Linux/WSL workflow
+## Environment
 
-1. Copy `deploy-local.example.py` to `deploy-local.py` in this directory.
-2. Keep `deploy-local.py` uncommitted; it is covered by the repository `.gitignore`.
-3. Configure these environment variables in the IntelliJ Maven run configuration or in the shell that launches Maven:
+| Variable | Value |
+|---|---|
+| `CALAGOPUS_PANEL_URL` | HTTPS panel URL, e.g. `https://panel.codeyourhome.eu` |
+| `CALAGOPUS_API_TOKEN` | New Calagopus API key; never paste into chat or commit |
+| `CALAGOPUS_SERVER_ID` | Full server UUID, not the old eight-character Pelican identifier |
+| `CALAGOPUS_PLUGIN_PATH` | Optional; defaults to `/plugins/MCCodeCampLibraryTestPlugin.jar` |
+| `CALAGOPUS_DEPLOY_DRY_RUN` | Optional `true`: validate only, no Python network or file writes |
+| `PLUGINSFOLDER` | Optional local plugins folder |
 
-   - `PELICAN_PANEL_URL` — panel base URL, without a trailing slash
-   - `PELICAN_API_TOKEN` — Pelican **client** API token; never put it in Git or the POM
-   - `PELICAN_SERVER_ID` — Pelican client-server identifier
-   - `PELICAN_PLUGIN_PATH` — optional remote path; defaults to `/plugins/MCCodeCampLibraryTestPlugin.jar`
+The key needs server permissions **`files.create`** and **`files.read-content`**. Scope it to the test server where possible. `PELICAN_*` variable names remain fallback aliases during migration; they now use the Calagopus protocol and still require the **new key and full UUID**. Explicit `CALAGOPUS_*` values take precedence, including an empty value. `.env` files are not loaded automatically.
 
-4. Run the normal test-plugin package build. When `deploy-local.py` exists, the POM automatically runs it after packaging and passes the generated JAR path as its only argument.
+## Build / upload
 
-The launcher uses Python's standard library and works with native Windows Python, Linux `python3`, and WSL. It supports `PELICAN_DEPLOY_DRY_RUN=true` to validate the local artifact and configuration without uploading.
+From the repository root: `mvn -Pdev clean package`. Shading finishes before the Python deployment execution. `-Dexec.skip=true` disables the Python execution without skipping compilation or packaging. No remote variables means no remote upload; partial configuration fails rather than silently uploading elsewhere. No server reload or restart is performed.
 
-## Migration from the legacy `.sh` deployment
+The existing Maven local-copy profile still copies at `package` when `PLUGINSFOLDER` is set, independently of Python. For a completely side-effect-free Maven dry-run, unset `PLUGINSFOLDER` as well as setting `CALAGOPUS_DEPLOY_DRY_RUN=true`.
 
-Existing Linux/WSL developer machines may still have the ignored `deploy-local.sh`. The Maven POM retains a Unix-only compatibility profile so that legacy setup continues to work when Maven is run in Linux/WSL.
+## Protocol and verification
 
-The `.sh` route is now legacy:
+Verified against the current panel's public `/openapi.json` and Calagopus upstream routes:
 
-- Do not copy an old `.sh` script unchanged into a native Windows Maven setup.
-- New machines should copy `deploy-local.example.py` to `deploy-local.py` instead.
-- A Windows developer who wants to keep the old script should run Maven inside WSL; a native Windows Maven process will not activate the legacy Bash profile.
-- Agents working on another machine should point developers to this migration guide and must not request or commit their API token.
+1. Inspect the existing target with `GET /api/client/servers/{uuid}/files/fingerprint?file=...&algorithm=sha256` (404 is allowed for a new file).
+2. Request `GET /api/client/servers/{uuid}/files/upload`, which returns `{ "url": "..." }`.
+3. POST a multipart field named **`files`** to the signed Wings URL with `directory` and `total_size` query parameters. The filename comes from the configured target path, not necessarily the local JAR name. Do **not** forward the panel bearer key to Wings.
+4. Read the exact target fingerprint again and compare its SHA-256 to the built JAR. A mismatch fails the build.
 
-## API behavior
+The previous `/files/write` approach targets a size-limited text-editor route; the signed upload is the panel's file-upload workflow and avoids that limit. HTTPS verification remains enabled, redirects are refused, signed URLs and response bodies are never printed. The upload buffers one JAR plus multipart framing in memory.
 
-The Python launcher uploads the packaged JAR with Pelican's client API file-write endpoint:
+## Tests
 
-`POST /api/client/servers/{server-id}/files/write?file={remote-plugin-path}`
+`python -m unittest discover -s MCCodeCampLibraryTestPlugin/tests -v`
 
-It sends the JAR as binary data with a bearer token, reports the HTTP result, and returns a non-zero exit code for missing configuration, unreachable panels, or HTTP failures.
+Tests use dummy credentials and a protocol harness, never a real panel. A real upload must additionally be tested and SHA-256 verified with your local key before publishing migration changes.
+
+## Legacy shell scripts
+
+The Unix-only `deploy-local.sh` compatibility profile remains for existing developer setups, but it does not migrate its implementation to Calagopus. Prefer the tracked Python launcher. Do not enable both Python and legacy shell deployment simultaneously.

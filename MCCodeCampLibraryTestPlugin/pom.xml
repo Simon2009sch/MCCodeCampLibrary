@@ -111,11 +111,11 @@
     <!--
       Per-developer remote deployment.
 
-      Copy deploy-local.example.py to deploy-local.py and configure the
-      PELICAN_* environment variables in the IDE. The Python launcher uses
-      only the standard library and works from native Windows, Linux, and WSL.
-      The personal deploy-local.py is gitignored and is activated only when
-      it exists, so normal builds remain local-only.
+      Calagopus deployment via the credential-free tracked deploy-local.py.
+      Configure CALAGOPUS_* environment variables in the IDE. PELICAN_* names
+      remain migration aliases, but require a new Calagopus key and full UUID.
+      Python uses only its standard library on Windows, Linux and WSL.
+      Without deployment environment variables the launcher does nothing.
     -->
     <profile>
       <id>deploy-remote-python-windows</id>

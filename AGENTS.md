@@ -142,14 +142,14 @@ There is an explicit TODO in the block-region grouping algorithm around growing 
 
 There is a per-developer remote deployment path for the test plugin:
 
-- `MCCodeCampLibraryTestPlugin/deploy-local.example.py` is the portable template and is tracked.
-- A developer copies it to `MCCodeCampLibraryTestPlugin/deploy-local.py`; that personal file is gitignored.
-- The Python launcher uses only the standard library and works on native Windows, Linux, and WSL.
-- It uploads the Maven JAR to Pelican's client file-write endpoint. Configure `PELICAN_PANEL_URL`, `PELICAN_API_TOKEN`, and `PELICAN_SERVER_ID`; optionally set `PELICAN_PLUGIN_PATH`. Never commit the API token.
-- The test-plugin POM activates the Python deployment profile only when `deploy-local.py` exists. Native Windows uses `python`; Unix/WSL uses `python3`. Normal builds do not deploy. Agents should check the developer's IDE environment variables before troubleshooting deployment.
-- Existing Linux/WSL machines may still have the old ignored `deploy-local.sh`. The POM keeps a Unix-only compatibility profile for it, but new machines should migrate to the Python template. Agents should remind developers that the old `.sh` route is legacy and should not be copied into a Windows setup unchanged.
-- The old `deploy-local.sh` profile is not automatically used by a native Windows Maven process. Run Maven inside WSL or migrate to `deploy-local.py`.
-- See `MCCodeCampLibraryTestPlugin/DEPLOYMENT.md` for setup and migration details.
+- `MCCodeCampLibraryTestPlugin/deploy-local.py` is tracked and contains no credentials; no example-file copy is required.
+- The launcher uses only Python's standard library on native Windows, Linux and WSL.
+- The current panel is **Calagopus**, not Pelican. Set `CALAGOPUS_PANEL_URL`, `CALAGOPUS_API_TOKEN` and `CALAGOPUS_SERVER_ID` (the **full UUID**). Optional `CALAGOPUS_PLUGIN_PATH` defaults to `/plugins/MCCodeCampLibraryTestPlugin.jar`. `PELICAN_*` names remain migration aliases, but the old API key and short identifier are not valid Calagopus configuration.
+- Uploads use `GET /files/upload` to obtain a signed Wings URL, multipart field `files`, and remote `GET /files/fingerprint?algorithm=sha256` to verify the exact uploaded bytes. Do not revert to the size-limited `/files/write` text-editor route. Key permissions: `files.create` and `files.read-content`; never forward the panel bearer key to the signed Wings host.
+- Python deployment profiles run after shading at `package` when the tracked launcher exists; without deployment variables the launcher is a no-op. `-Dexec.skip=true` skips Python deployment only. The separate Maven `PLUGINSFOLDER` copy profile is independent, so unset that variable for side-effect-free dry runs.
+- The Unix `deploy-local.sh` compatibility profile remains but does not migrate legacy scripts to Calagopus; avoid enabling both deployment launchers.
+- Deployment tests: `python -m unittest discover -s MCCodeCampLibraryTestPlugin/tests -v`. These use dummy protocol responses, not a live server. Do not claim a real upload passed until remote SHA-256 verification has actually succeeded.
+- See `MCCodeCampLibraryTestPlugin/DEPLOYMENT.md` for configuration, migration and API details.
 
 ## Known gaps and cautions
 

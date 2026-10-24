@@ -1,92 +1,138 @@
 #!/usr/bin/env python3
-"""Upload the test-plugin JAR to a Pelican client server.
-
-This personal copy is gitignored. Required environment variables:
-  PELICAN_PANEL_URL, PELICAN_API_TOKEN, PELICAN_SERVER_ID
-Optional: PELICAN_PLUGIN_PATH, PELICAN_DEPLOY_DRY_RUN
-"""
-
+"""Calagopus signed multipart JAR upload; credentials only from environment."""
 from __future__ import annotations
-
+import hashlib
+import json
 import os
+from pathlib import Path, PurePosixPath
+import re
+import secrets
 import shutil
 import sys
-from pathlib import Path
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode
-from urllib.request import Request, urlopen
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 
-def required_env(name: str) -> str:
-    value = os.environ.get(name, "").strip()
+class NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def setting(suffix: str, default: str = "") -> str:
+    for prefix in ("CALAGOPUS_", "PELICAN_"):
+        name = prefix + suffix
+        if name in os.environ:
+            return os.environ[name].strip()
+    return default
+
+
+def required(suffix: str) -> str:
+    value = setting(suffix)
     if not value:
-        raise SystemExit(f"Missing required environment variable: {name}")
+        raise ValueError("Missing required environment variable: CALAGOPUS_" + suffix)
     return value
+
+
+def https_url(value: str, *, signed: bool = False) -> str:
+    url = urlsplit(value)
+    if url.scheme != "https" or not url.hostname or url.username or url.password or url.fragment:
+        raise ValueError("Panel and signed upload URLs must use HTTPS without userinfo or fragments")
+    if not signed and url.query:
+        raise ValueError("CALAGOPUS_PANEL_URL must not have a query string")
+    if signed and not dict(parse_qsl(url.query)).get("token"):
+        raise ValueError("Calagopus did not return a signed upload URL")
+    return value
+
+
+def request_json(opener, url: str, token: str):
+    request = Request(url, headers={"Authorization": "Bearer " + token, "Accept": "application/json"})
+    with opener.open(request, timeout=120) as response:
+        return json.load(response)
+
+
+def deploy(artifact: Path, panel: str, token: str, server: str, remote: str) -> str:
+    """Use Wings multipart upload, not the size-limited text-editor endpoint."""
+    opener = build_opener(NoRedirect())
+    base = panel + "/api/client/servers/" + server + "/files/"
+    fingerprint_url = base + "fingerprint?" + urlencode({"file": remote, "algorithm": "sha256"})
+    try:
+        request_json(opener, fingerprint_url, token)
+    except HTTPError as error:
+        if error.code != 404:
+            raise
+    signed = https_url(request_json(opener, base + "upload", token)["url"], signed=True)
+    target = PurePosixPath(remote)
+    url = urlsplit(signed)
+    query = [(k, v) for k, v in parse_qsl(url.query) if k not in {"directory", "total_size"}]
+    query += [("directory", str(target.parent)), ("total_size", str(artifact.stat().st_size))]
+    upload_url = urlunsplit(url._replace(query=urlencode(query)))
+    payload = artifact.read_bytes()
+    boundary = "mccodecamp-" + secrets.token_hex(24)
+    body = (
+        f'--{boundary}\r\nContent-Disposition: form-data; name="files"; filename="{target.name}"\r\n'
+        'Content-Type: application/java-archive\r\n\r\n'
+    ).encode("utf-8") + payload + f"\r\n--{boundary}--\r\n".encode("ascii")
+    # The signed URL authenticates Wings; never forward the panel bearer token.
+    request = Request(upload_url, data=body, method="POST", headers={"Content-Type": "multipart/form-data; boundary=" + boundary})
+    with opener.open(request, timeout=120) as response:
+        response.read()
+    expected = hashlib.sha256(payload).hexdigest()
+    actual = request_json(opener, fingerprint_url, token).get("fingerprint", "")
+    if actual.lower() != expected:
+        raise ValueError("Remote SHA-256 does not match the built JAR; upload NOT verified")
+    return expected
 
 
 def main() -> int:
     if len(sys.argv) != 2 or sys.argv[1] in {"-h", "--help"}:
         print(f"Usage: {Path(sys.argv[0]).name} <jar-file>")
-        return 0 if len(sys.argv) == 2 else 2
-
-    artifact = Path(sys.argv[1]).resolve()
-    if not artifact.is_file():
-        raise SystemExit(f"JAR file does not exist: {artifact}")
-
-    localTestserver = os.environ.get("PLUGINSFOLDER", "").strip()
-    if localTestserver:
-        localDir = Path(localTestserver)
-        localDir.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(artifact, localDir / artifact.name)
-        print(f"Copied {artifact.name} to local plugins folder {localDir}")
-        
-
-
-    panel_url = required_env("PELICAN_PANEL_URL").rstrip("/")
-    api_token = required_env("PELICAN_API_TOKEN")
-    server_id = required_env("PELICAN_SERVER_ID")
-    remote_file = os.environ.get(
-        "PELICAN_PLUGIN_PATH", "/plugins/MCCodeCampLibraryTestPlugin.jar"
-    ).strip()
-    if not remote_file.startswith("/"):
-        remote_file = "/" + remote_file
-
-    endpoint = (
-        f"{panel_url}/api/client/servers/{server_id}/files/write?"
-        + urlencode({"file": remote_file})
-    )
-    payload = artifact.read_bytes()
-    print(f"Uploading {artifact} ({len(payload)} bytes)")
-    print(f"Target: {panel_url} / server {server_id} / {remote_file}")
-
-    if os.environ.get("PELICAN_DEPLOY_DRY_RUN", "").lower() in {"1", "true", "yes"}:
-        print("Dry run: upload skipped")
-        return 0
-
-    request = Request(
-        endpoint,
-        data=payload,
-        method="POST",
-        headers={
-            "Accept": "application/json",
-            "Content-Type": "application/octet-stream",
-            "Authorization": f"Bearer {api_token}",
-        },
-    )
-
+        return 0 if len(sys.argv) == 2 and sys.argv[1] in {"-h", "--help"} else 2
     try:
-        with urlopen(request, timeout=60) as response:
-            response.read()
-            print(f"Upload succeeded (HTTP {response.status})")
+        artifact = Path(sys.argv[1]).resolve()
+        if not artifact.is_file() or artifact.suffix.lower() != ".jar":
+            raise ValueError("JAR file does not exist or is not a .jar file")
+        dry_run = setting("DEPLOY_DRY_RUN").lower() in {"1", "true", "yes"}
+        remote_enabled = any(setting(key) for key in ("PANEL_URL", "API_TOKEN", "SERVER_ID", "PLUGIN_PATH"))
+        if remote_enabled:
+            panel = https_url(required("PANEL_URL").rstrip("/"))
+            token = required("API_TOKEN")
+            server = required("SERVER_ID")
+            if not re.fullmatch(r"[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}", server):
+                raise ValueError("CALAGOPUS_SERVER_ID must be the full Calagopus server UUID, not the old 8-character Pelican identifier")
+            remote = setting("PLUGIN_PATH") or "/plugins/MCCodeCampLibraryTestPlugin.jar"
+            remote = "/" + remote.lstrip("/")
+            if any(c in remote for c in ('\r', '\n', '"', '\\', '\x00')) or ".." in remote.split("/") or not remote.lower().endswith(".jar"):
+                raise ValueError("CALAGOPUS_PLUGIN_PATH must be a .jar path without traversal, quotes or control characters")
+        if dry_run:
+            destination = remote if remote_enabled else "local-only"
+            print(f"Dry run: would deploy {artifact.name} to {destination}; no network or files changed")
+            return 0
+        if remote_enabled:
+            digest = deploy(artifact, panel, token, server, remote)
+            print(f"Calagopus upload verified: {remote} (SHA-256 {digest})")
+        local = os.environ.get("PLUGINSFOLDER", "").strip()
+        if local:
+            directory = Path(local)
+            directory.mkdir(parents=True, exist_ok=True)
+            target = directory / artifact.name
+            if target.resolve() != artifact:
+                shutil.copy2(artifact, target)
+            if hashlib.sha256(target.read_bytes()).digest() != hashlib.sha256(artifact.read_bytes()).digest():
+                raise ValueError("Local copy verification failed")
+            print(f"Local JAR copy verified: {target}")
+        if not remote_enabled and not local:
+            print("No deployment environment configured; JAR remains local")
+        return 0
     except HTTPError as error:
-        detail = error.read().decode("utf-8", errors="replace")
-        print(f"Pelican upload failed (HTTP {error.code}): {detail}", file=sys.stderr)
-        return 1
-    except URLError as error:
-        print(f"Could not reach Pelican: {error.reason}", file=sys.stderr)
-        return 1
-
-    return 0
+        print(f"Calagopus deployment failed: HTTP {error.code}. Check token permissions, UUID and node access.", file=sys.stderr)
+    except (URLError, OSError):
+        # Transport errors can contain the signed query token; don't stringify them.
+        print("Calagopus deployment failed: network/TLS or file I/O error", file=sys.stderr)
+    except (ValueError, KeyError, TypeError) as error:
+        message = str(error) if isinstance(error, ValueError) and not isinstance(error, json.JSONDecodeError) else "Invalid Calagopus JSON response"
+        print("Calagopus deployment failed: " + message, file=sys.stderr)
+    return 1
 
 
 if __name__ == "__main__":

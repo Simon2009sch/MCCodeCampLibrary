@@ -43,3 +43,10 @@ build/
 
 ## claude
 .claude
+
+### Python deployment / local secrets ###
+__pycache__/
+*.py[cod]
+.env
+.env.*
+!.env.example

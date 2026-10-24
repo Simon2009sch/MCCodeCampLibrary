@@ -1,0 +1,220 @@
+{
+  "version": 3,
+  "label": "MCCodeCamp - Paper + Calagopus Upload",
+  "group": "plugin",
+  "properties": [
+    {
+      "name": "BUILD_COORDS",
+      "type": "build_system_coordinates",
+      "order": 10,
+      "visible": false,
+      "default": "me.simoncrafter:my-plugin:1.0-SNAPSHOT"
+    },
+    {
+      "name": "BUILD_SYSTEM",
+      "type": "string",
+      "visible": false,
+      "default": "Maven"
+    },
+    {
+      "name": "LANGUAGE",
+      "type": "string",
+      "visible": false,
+      "default": "Java"
+    },
+    {
+      "name": "MC_VERSION",
+      "type": "paper_versions",
+      "forceDropdown": true,
+      "default": 0
+    },
+    {
+      "name": "API_VERSION",
+      "type": "semantic_version",
+      "visible": false,
+      "derives": {
+        "parents": [
+          "MC_VERSION"
+        ],
+        "method": "extractPaperApiVersion"
+      }
+    },
+    {
+      "name": "PLUGIN_NAME",
+      "type": "string",
+      "inheritFrom": "PROJECT_NAME"
+    },
+    {
+      "name": "MAIN_CLASS",
+      "type": "class_fqn",
+      "derives": {
+        "parents": [
+          "BUILD_COORDS",
+          "PLUGIN_NAME"
+        ],
+        "method": "suggestClassName"
+      }
+    },
+    {
+      "name": "USE_PAPER_MANIFEST",
+      "type": "boolean",
+      "default": false
+    },
+    {
+      "label": "creator.ui.optional_settings.label",
+      "collapsible": true,
+      "order": 2,
+      "groupProperties": [
+        {
+          "name": "DESCRIPTION",
+          "type": "string",
+          "default": "",
+          "nullIfDefault": true
+        },
+        {
+          "name": "AUTHORS",
+          "type": "inline_string_list",
+          "default": "",
+          "nullIfDefault": true
+        },
+        {
+          "name": "WEBSITE",
+          "type": "string",
+          "default": "",
+          "nullIfDefault": true
+        },
+        {
+          "name": "LOG_PREFIX",
+          "type": "string",
+          "default": "",
+          "nullIfDefault": true
+        },
+        {
+          "name": "LOAD_AT",
+          "type": "string",
+          "options": [
+            "STARTUP",
+            "POSTWORLD"
+          ],
+          "default": "POSTWORLD"
+        }
+      ]
+    },
+    {
+      "name": "INCLUDE_PLUGIN_LOADER",
+      "type": "boolean",
+      "order": 1,
+      "default": false
+    },
+    {
+      "name": "JAVA_VERSION",
+      "type": "integer",
+      "order": 20,
+      "visible": false,
+      "derives": {
+        "parents": [
+          "MC_VERSION"
+        ],
+        "method": "recommendJavaVersionForMcVersion",
+        "default": 17
+      }
+    },
+    {
+      "name": "JDK",
+      "type": "jdk",
+      "order": 20,
+      "default": "JAVA_VERSION",
+      "visible": false
+    },
+    {
+      "name": "IS_PAPER",
+      "type": "boolean",
+      "visible": false,
+      "default": true
+    },
+    {
+      "name": "DEPENDENCY_VERSION",
+      "type": "string",
+      "derives": {
+        "parents": [
+          "MC_VERSION",
+          "BUILD_SYSTEM"
+        ],
+        "method": "fetchPaperDependencyVersionForMcVersion"
+      },
+      "visible": false
+    }
+  ],
+  "files": [
+    {
+      "template": "pom.xml.ft",
+      "destination": "pom.xml",
+      "reformat": false,
+      "openInEditor": false
+    },
+    {
+      "template": "MainClass.java.ft",
+      "destination": "src/main/java/${MAIN_CLASS.path}.java",
+      "reformat": false,
+      "openInEditor": true
+    },
+    {
+      "template": "deploy.py.ft",
+      "destination": "deploy.py",
+      "reformat": false,
+      "openInEditor": false
+    },
+    {
+      "template": "README.md.ft",
+      "destination": "README.md",
+      "reformat": false,
+      "openInEditor": false
+    },
+    {
+      "template": "gitignore.ft",
+      "destination": ".gitignore",
+      "reformat": false,
+      "openInEditor": false
+    },
+    {
+      "template": "plugin.yml.ft",
+      "destination": "src/main/resources/plugin.yml",
+      "condition": "!$USE_PAPER_MANIFEST",
+      "reformat": false
+    },
+    {
+      "template": "plugin.yml.ft",
+      "destination": "src/main/resources/paper-plugin.yml",
+      "condition": "$USE_PAPER_MANIFEST",
+      "reformat": false
+    },
+    {
+      "template": "LoaderClass.java.ft",
+      "destination": "src/main/java/${MAIN_CLASS.packagePath}/${MAIN_CLASS.className}Loader.java",
+      "condition": "$INCLUDE_PLUGIN_LOADER",
+      "reformat": false
+    }
+  ],
+  "finalizers": [
+    {
+      "type": "import_maven_project"
+    },
+    {
+      "type": "add_maven_run",
+      "goals": [
+        "clean",
+        "verify"
+      ],
+      "name": "Build + Upload",
+      "select": true
+    },
+    {
+      "type": "add_maven_run",
+      "goals": [
+        "clean",
+        "package"
+      ],
+      "name": "Build only"
+    }
+  ]
+}

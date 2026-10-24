@@ -1,0 +1,28 @@
+# ${PLUGIN_NAME}
+
+Paper ${MC_VERSION} / Java ${JAVA_VERSION} / Maven. Minecraft-Version, API-Version und Paper-Abhängigkeit werden wie in der offiziellen Paper-Vorlage abgeleitet. Maven und Java sind fest vorgegeben; Koordinaten, JDK und Gradle-Einstellungen sind keine sichtbaren Vorlagenoptionen.
+
+Optional Settings: leere Beschreibung/Autoren/Website/Log-Präfix werden weggelassen; Load Order ist standardmäßig POSTWORLD. Use Paper manifest erzeugt paper-plugin.yml statt plugin.yml. Include plugin loader file erzeugt eine Java-Loaderklasse und den passenden Manifest-Eintrag (loader bzw. paper-plugin-loader).
+
+## In IntelliJ
+
+`Run > Edit Configurations > Build + Upload > Environment variables`:
+
+- `CALAGOPUS_PANEL_URL`: HTTPS-Adresse deines Panels
+- `CALAGOPUS_API_TOKEN`: API-Token mit Serverrechten `files.create` und `files.read-content`
+- `CALAGOPUS_SERVER_ID`: vollständige Calagopus-Server-UUID (keine alte 8-stellige Pelican-ID)
+- optional `CALAGOPUS_PLUGIN_PATH`: Ziel, z.B. `/plugins/MyPlugin.jar`; Standard `/plugins/<Maven-JAR-Dateiname>`
+- optional `PLUGINSFOLDER`: lokaler plugins-Ordner
+- optional `CALAGOPUS_DEPLOY_DRY_RUN=true`: Remote-Upload nur simulieren
+
+Keine Zugangsdaten in POM, Quellcode oder geteilte Run-Konfigurationen schreiben. Eine `.env`-Datei wird NICHT automatisch geladen; Variablen im Maven-Runner setzen.
+
+**Build + Upload**: `clean verify`. Calagopus-Upload nach dem Shading, ausschließlich wenn `CALAGOPUS_API_TOKEN` gesetzt ist. Fehlende restliche Variablen lassen den Upload fehlschlagen. Der Upload wird anschließend per SHA256-Fingerprint geprüft. Kein automatischer Server-Neustart/Reload. Alte `PELICAN_*`-Variablen sind Script-Aliase; für automatische Maven-Profilaktivierung den Token unter `CALAGOPUS_API_TOKEN` setzen (oder das passende `deploy-remote-python-windows`/`deploy-remote-python-unix`-Profil explizit aktivieren).
+
+**Build only**: `clean package`, kein Remote-Upload. Wenn `PLUGINSFOLDER` gesetzt ist, wird die fertige JAR lokal kopiert (auch bei Build only). Ohne Variablen bleibt jeder Build lokal.
+
+Python muss auf PATH sein: Windows `python`, Linux/macOS `python3`. Mit `-Dexec.skip=true` lässt sich der Remote-Schritt explizit überspringen.
+
+## Optional: MCCodeCampLibrary verwenden
+
+Die Library ist nicht automatisch eingebunden, da sie aktuell nicht unter ihren lokalen Maven-Koordinaten installiert ist. Zuerst im MCCodeCampLibrary-Projekt `mvn install` mit dem Library-Profil ausführen, danach hier das Profil `mccodecamp-library` aktivieren und Java-Version/JDK auf mindestens 22 setzen. Dann kann `MCCodeCampLib.init(this)` / `MCCodeCampLib.onDisable()` in den Lebenszyklus eingebunden werden. Standardmäßig ist dies ein unabhängiges Paper-Plugin, keine Kopie des Library-Testharness.

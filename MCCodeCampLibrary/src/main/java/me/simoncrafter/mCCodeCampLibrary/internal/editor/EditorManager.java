@@ -110,6 +110,7 @@ public class EditorManager implements Listener {
     /**
      * Unwinds to {@code parentId}, then optionally enters {@code childId}.
      * A null child ID intentionally means "remain in the parent".
+     * A null parent with a given child means to put the player one layer above the child editor
      */
     public int goTo(Player player, String parentId, @Nullable String childId) {
         AEditor parent = getEditor(parentId);
@@ -118,6 +119,11 @@ public class EditorManager implements Listener {
         return sessionFor(player).goTo(parent, child);
     }
 
+    /**
+     * Unwinds to {@code parentId}, then optionally enters {@code childId}.
+     * A null child ID intentionally means "remain in the parent".
+     * A null parent with a given child means to put the player one layer above the child editor
+     */
     public int goTo(Player player, AEditor parent, @Nullable AEditor child) {
         String parentId = getEditorId(parent);
         String childId = child == null ? null : getEditorId(child);

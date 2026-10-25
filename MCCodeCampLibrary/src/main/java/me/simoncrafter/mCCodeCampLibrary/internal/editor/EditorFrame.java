@@ -1,6 +1,7 @@
 package me.simoncrafter.mCCodeCampLibrary.internal.editor;
 
 
+import me.simoncrafter.mCCodeCampLibrary.internal.editor.events.PlayerChangeSelectionOfObjectEvent;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.HashMap;

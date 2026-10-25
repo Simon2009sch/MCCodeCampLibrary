@@ -12,7 +12,7 @@ public final class MCCodeCampLibraryTestPlugin extends JavaPlugin {
     public void onEnable() {
         MCCodeCampLib.init(this);
         Bukkit.getPluginCommand("coursedit").setExecutor((CommandExecutor) new CourseEditCommand(this));
-        Bukkit.broadcast(Component.text("Reloaded!"));
+        Bukkit.broadcast(Component.text("Reloaded!!"));
     }
 
     @Override

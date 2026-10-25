@@ -9,9 +9,11 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.*;
 import org.bukkit.event.player.PlayerDropItemEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
@@ -87,10 +89,11 @@ public class HotbarMenu implements Listener {
         }
 
         int pageCount = Math.max(1, (items.size() + 8) / 9);
-        int normalizedPage = Math.max(0, Math.min(page, pageCount - 1));
+        int normalizedPage = Math.clamp(page, 0, pageCount);
         for (HotbarMenu m : instances) {
             m.onMenuChange(player);
         }
+
 
         for (int slot = 0; slot < 9; slot++) {
             int itemIndex = normalizedPage * 9 + slot;
@@ -270,7 +273,7 @@ public class HotbarMenu implements Listener {
      * @return The created hotbar item.
      */
     public HotbarItem createPageChangeItem(ItemStack item, int pageNumber) {
-        return createPageChangeItem(item, i -> {return pageNumber;});
+        return createPageChangeItem(item, i -> pageNumber);
     }
 
 
@@ -290,6 +293,7 @@ public class HotbarMenu implements Listener {
     public void onInventoryClick(InventoryClickEvent event) {
         if (event.getInventory().getHolder() instanceof Player player && players.containsKey(player)) {
             event.setCancelled(true);
+            event.getInventory().setItem(499, new ItemStack(Material.AIR)); // set item on cursor to air for the player
         }
     }
 
@@ -327,6 +331,14 @@ public class HotbarMenu implements Listener {
 
         InventoryScrollEvent scrollEvent = new InventoryScrollEvent(player, direction, previousSlot, newSlot);
         scrollActions.forEach(a -> a.accept(scrollEvent));
+    }
+
+    @EventHandler
+    public void onPlayerInteract(PlayerInteractEvent event) {
+        Action action = event.getAction();
+        if (players.containsKey(event.getPlayer()) && (action == Action.LEFT_CLICK_BLOCK)) {
+            event.setCancelled(true);
+        }
     }
 
     @EventHandler

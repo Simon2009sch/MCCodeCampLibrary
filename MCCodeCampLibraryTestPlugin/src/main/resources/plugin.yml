@@ -7,3 +7,8 @@ load: POSTWORLD
 
 commands:
   coursedit: {}
+
+permissions:
+  mccodecamp.command.edit.worldmarker:
+    description: Create, inspect, replace config and remove world markers for testing.
+    default: op

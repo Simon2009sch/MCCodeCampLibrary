@@ -1,90 +1,113 @@
 package me.simoncrafter.mCCodeCampLibrary.utility;
 
-import org.bukkit.Bukkit;
-
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
- * A tick-based cooldown that does not schedule any Bukkit tasks.
- * <p>
- * Elapsed detection is lazy: {@link #isOnCooldown()} compares the current tick
- * against the stored release tick, and {@link #start(boolean)} runs the elapse
- * callbacks if a previous cooldown has finished since the last check. No
- * scheduler round-trips, no task to cancel on destroy.
+ * A tick-based cooldown driven by the single loop in {@link MCCodeCampLib}.
+ * Instances register themselves; owners must call {@link #dispose()} when removed.
+ * Construction, mutation and {@link #tickAll()} must run on the server thread.
+ * This class does not access Bukkit or create tasks itself.
  */
 public class Cooldown {
+    private static final List<Cooldown> instances = new ArrayList<>();
+    private static final Logger LOGGER = Logger.getLogger(Cooldown.class.getName());
+    private static long currentTick;
 
     private int cooldown;
-    private long readyAtTick = 0;
-    private long callbacksFiredForReadyAt = 0;
+    private long readyAtTick;
+    private boolean running;
+    private boolean disposed;
     private final Set<Runnable> callbacks = new HashSet<>();
     private final Set<Runnable> startCallbacks = new HashSet<>();
 
     public Cooldown(int cooldown) {
         this.cooldown = cooldown;
+        instances.add(this);
+    }
+
+    /** Called once per server tick by the central library loop. */
+    public static void tickAll() {
+        currentTick++;
+        // A callback may create or dispose cooldowns: never iterate the live list.
+        for (Cooldown instance : List.copyOf(instances)) {
+            instance.fireElapsedCallbacks();
+        }
+    }
+
+    /** Stops and releases all registered instances when the library is disabled. */
+    public static void disposeAll() {
+        for (Cooldown instance : List.copyOf(instances)) {
+            instance.dispose();
+        }
+        currentTick = 0;
+    }
+
+    /** Cancels without firing callbacks and permanently unregisters this instance. Idempotent. */
+    public void dispose() {
+        if (disposed) return;
+        disposed = true;
+        running = false;
+        instances.remove(this);
+        callbacks.clear();
+        startCallbacks.clear();
     }
 
     public void registerCallback(Runnable callback) {
-        this.callbacks.add(callback);
+        if (!disposed) callbacks.add(Objects.requireNonNull(callback, "callback"));
     }
 
     public void registerStartCallback(Runnable callback) {
-        this.startCallbacks.add(callback);
+        if (!disposed) startCallbacks.add(Objects.requireNonNull(callback, "callback"));
     }
 
     public int getCooldown() {
         return cooldown;
     }
 
-    /**
-     * Sets the cooldown time. Will not influence the currently running cooldown.
-     * @param cooldown
-     */
+    /** Sets the duration for future starts; does not change an already running cooldown. */
     public void setCooldown(int cooldown) {
         this.cooldown = cooldown;
     }
 
-    /**
-     * @return {@code true} if the cooldown hasn't elapsed yet. If the cooldown is over
-     *         (or set to 0) returns {@code false}.
-     */
     public boolean isOnCooldown() {
-        return Bukkit.getCurrentTick() < readyAtTick;
+        return !disposed && running && currentTick < readyAtTick;
     }
 
-    /**
-     * Starts the cooldown.
-     */
     public void start() {
         start(false);
     }
 
-    /**
-     * Starts the cooldown. If one is already running, {@code override} decides whether
-     * it gets restarted (true) or the call is ignored (false).
-     */
+    /** Starts the cooldown; a running cooldown is restarted only when override is true. */
     public void start(boolean overrideCurrentCooldown) {
-        if (cooldown <= 0) {
-            return;
-        }
-        if (isOnCooldown() && !overrideCurrentCooldown) {
-            return;
-        }
-        fireElapsedCallbacks();
-        readyAtTick = Bukkit.getCurrentTick() + cooldown;
-        startCallbacks.forEach(Runnable::run);
+        if (disposed || cooldown <= 0) return;
+        if (isOnCooldown() && !overrideCurrentCooldown) return;
+        readyAtTick = currentTick + cooldown;
+        running = true;
+        runCallbacks(startCallbacks);
     }
 
-    /**
-     * Fires the elapse callbacks if a cooldown has finished since they were last fired.
-     * Safe to call at any time; each elapse fires the callbacks at most once.
-     */
     private void fireElapsedCallbacks() {
-        long currentTick = Bukkit.getCurrentTick();
-        if (readyAtTick > 0 && readyAtTick <= currentTick && callbacksFiredForReadyAt != readyAtTick) {
-            callbacksFiredForReadyAt = readyAtTick;
-            callbacks.forEach(Runnable::run);
+        if (disposed || !running || currentTick < readyAtTick) return;
+        // Clear first: a callback may restart or dispose this cooldown.
+        running = false;
+        runCallbacks(callbacks);
+    }
+
+    private void runCallbacks(Set<Runnable> actions) {
+        for (Runnable action : List.copyOf(actions)) {
+            if (disposed) break;
+            try {
+                action.run();
+            } catch (RuntimeException e) {
+                // One broken callback must not prevent other cooldowns from expiring.
+                LOGGER.log(Level.WARNING, "Cooldown callback failed", e);
+            }
         }
     }
 }

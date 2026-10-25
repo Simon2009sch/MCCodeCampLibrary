@@ -50,6 +50,10 @@ public class CourseEditCommand implements TabExecutor, org.bukkit.command.Comman
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String @NotNull [] args) {
+        // Testing/AI commands also work from console, before the legacy player-only commands.
+        if (args.length > 0 && args[0].equalsIgnoreCase("worldmarker")) {
+            return WorldMarkerCommand.execute(sender, label, args);
+        }
         if (!(sender instanceof Player)) {
             sender.sendMessage(Component.text("You need to be a player to execute this!", NamedTextColor.RED));
             return true;
@@ -127,7 +131,7 @@ public class CourseEditCommand implements TabExecutor, org.bukkit.command.Comman
         } else if (args.length == 1 && args[0].equalsIgnoreCase("configedit")) {
             sendEditQuestion(player);
             return true;
-        } else if (args[0].equalsIgnoreCase("test")) {
+        } else if (args.length > 0 && args[0].equalsIgnoreCase("test")) {
             GenericQuestion q = GenericQuestion.create(Component.text("Dies ist eine testfage. Wähle eine option!"))
                     .addButton(
                             Button.create()
@@ -304,10 +308,14 @@ public class CourseEditCommand implements TabExecutor, org.bukkit.command.Comman
     @Override
     public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String @NotNull [] args) {
         if (args.length == 1) {
-            return matchingPrefix(List.of("getItems", "reload", "hotbar", "add", "list", "editortest", "configedit", "test"), args[0]);
+            return matchingPrefix(List.of("getItems", "reload", "hotbar", "add", "list", "editortest", "configedit", "test", "worldmarker"), args[0]);
         }
 
-        if (args[0].equalsIgnoreCase("add")) {
+        if (args.length > 0 && args[0].equalsIgnoreCase("worldmarker")) {
+            return WorldMarkerCommand.complete(sender, args);
+        }
+
+        if (args.length > 0 && args[0].equalsIgnoreCase("add")) {
             if (args.length == 2) {
                 return matchingPrefix(new ArrayList<>(MCCodeCampLib.getBlockMarkerRegistry().getObjectTypeIDs()), args[1]);
             }

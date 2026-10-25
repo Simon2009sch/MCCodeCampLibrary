@@ -8,10 +8,14 @@ import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.actions.InputActions.
 import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.buttons.Button;
 import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.questions.ConfirmQuestion;
 import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.questions.GenericQuestion;
+import me.simoncrafter.CraftersDisplayLibrary.display.wireframecube.WireframeCubeColorDisplay;
+import me.simoncrafter.CraftersDisplayLibrary.effect.highlighter.BlockHighlighter;
+import me.simoncrafter.CraftersDisplayLibrary.effect.highlighter.HighlightDisplayType;
 import me.simoncrafter.mCCodeCampLibrary.internal.activation.StyledRegistryObjectType;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.AEditor;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.IEditable;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.IEditorObjectDescriptor;
+import me.simoncrafter.mCCodeCampLibrary.internal.editor.events.PlayerChangeSelectionOfObjectEvent;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.events.PlayerClickEditableObjectEvent;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.events.PlayerRequestEditorNavigationEvent;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.hotbarmenu.HotbarItem;
@@ -28,15 +32,21 @@ import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
+import org.bukkit.Color;
 import org.bukkit.FluidCollisionMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.server.PluginDisableEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
+
+
+import org.joml.Vector3f;
 
 import java.util.*;
 import java.util.function.Consumer;
@@ -53,6 +63,14 @@ public class WorldMarkerEditor extends AEditor {
     private static final String DIALOG_GROUP_LOCATION_INPUT = "location_input";
     private static final String DIALOG_LOCATION_INPUT_SELECTION = DIALOG_GROUP_LOCATION_INPUT + "_selection";
     private static final String DIALOG_LOCATION_INPUT_TYPING = DIALOG_GROUP_LOCATION_INPUT + "_typing";
+
+
+    // The yellow object-selection outline uses 0.05f.
+    private static final float LOCATION_HIGHLIGHT_THICKNESS = 0.05f * 0.75f;
+    private static final String CREATION_HIGHLIGHT_KEY = "object_creation";
+    private final Map<UUID, Map<String, Map<Block, LocationHighlight>>> locationHighlights = new HashMap<>();
+
+    private record LocationHighlight(Player player, Block block, WireframeCubeColorDisplay display) { }
 
 
     public WorldMarkerEditor(Plugin plugin) {
@@ -74,6 +92,7 @@ public class WorldMarkerEditor extends AEditor {
 
     @Override
     protected void leave(Player player) {
+        clearLocationHighlights(player.getUniqueId());
         super.leave(player);
         if (getPlayers().contains(player)) HotbarMenu.forceCloseDialog(player);
     }
@@ -87,7 +106,28 @@ public class WorldMarkerEditor extends AEditor {
             MCCodeCampLib.getEditorManager().deselect(player);
         }
 
-        if (!(event.getClicked() instanceof IBlockRegestryObject marker)) return;
+
+
+
+
+    }
+
+    @EventHandler
+    public void onPlayerChangeSelectionOfObject(PlayerChangeSelectionOfObjectEvent event) {
+        if (event.getAction() == PlayerChangeSelectionOfObjectEvent.Action.SELECT) {
+            onSelect(event);
+        } else {
+            onDeselect(event);
+        }
+    }
+
+    private void onDeselect(PlayerChangeSelectionOfObjectEvent e) {
+
+    }
+
+    private void onSelect(PlayerChangeSelectionOfObjectEvent e) {
+        Player player = e.getPlayer();
+        if (!(e.getObject() instanceof IBlockRegestryObject marker)) return;
 
         if (DIALOG_OBJECT_SELECTOR.equals(MCCodeCampLib.getEditorManager().getPlayersCurrentDialogPath(player))
                 && "object_deletion".equals(MCCodeCampLib.getEditorManager()
@@ -98,14 +138,101 @@ public class WorldMarkerEditor extends AEditor {
                     marker.getTypeID() + ":" + marker.getID());
             navigate(player, DIALOG_CONFIRM_DELETE, context);
         }
+
+        Bukkit.broadcast(Component.text("key: " +player.getInventory().getItemInMainHand().getPersistentDataContainer().getOrDefault(HotbarItem.ITEM_KEY, PersistentDataType.STRING, "")));
+        if (player.getInventory().getItemInMainHand().getPersistentDataContainer().getOrDefault(HotbarItem.ITEM_KEY, PersistentDataType.STRING, "").endsWith("home_delete_item")) {
+            Map<String, Object> context = new HashMap<>(MCCodeCampLib.getEditorManager()
+                    .getPlayersCurrentDialogContext(player));
+            context.put(DIALOG_OBJECT_SELECTOR + "_result",
+                    marker.getTypeID() + ":" + marker.getID());
+            navigate(player, DIALOG_CONFIRM_DELETE, context);
+        }
     }
-
-
 
     @Override
     @EventHandler
     public void onBlockRegistryUpdate(BlockRegistryUpdateEvent event) {
         super.onBlockRegistryUpdate(event);
+    }
+
+    private void highlightLocation(Player player, Location location) {
+        highlightLocation(player, CREATION_HIGHLIGHT_KEY, location);
+    }
+
+    private void highlightLocation(Player player, String key, Location location) {
+        if (location.getWorld() == null) return;
+        UUID playerId = player.getUniqueId();
+        Block block = location.getBlock();
+        clearLocationHighlight(playerId, key, block);
+        // BlockHighlighter has one display per block. Share only displays owned by this editor.
+        WireframeCubeColorDisplay display = trackedLocationHighlights().stream()
+                .filter(h -> h.block().equals(block) && BlockHighlighter.getHighlightDisplay(block) == h.display())
+                .map(LocationHighlight::display).findFirst().orElse(null);
+        if (display == null) {
+            // Spawn transparent, hide recursively, and only then make the outline opaque.
+            display = (WireframeCubeColorDisplay) BlockHighlighter.highlightBlock(block,
+                    HighlightDisplayType.WIREFRAME, Color.fromARGB(0, 0, 0, 0));
+            display.hideByDefault(true, true);
+            display.setThickness(LOCATION_HIGHLIGHT_THICKNESS);
+            display.setSeeThrough(true);
+            display.scaleAbsolute(new Vector3f(1.05f, 1.05f, 1.05f), 0);
+            display.setColor(Color.WHITE);
+        }
+        display.showForPlayer(player, true);
+
+        locationHighlights.computeIfAbsent(playerId, ignored -> new HashMap<>())
+                .computeIfAbsent(key, ignored -> new HashMap<>())
+                .put(block, new LocationHighlight(player, block, display));
+    }
+
+    private List<LocationHighlight> trackedLocationHighlights() {
+        return locationHighlights.values().stream().flatMap(groups -> groups.values().stream())
+                .flatMap(blocks -> blocks.values().stream()).toList();
+    }
+
+    private void clearLocationHighlight(UUID playerId, String key, Block block) {
+        Map<String, Map<Block, LocationHighlight>> groups = locationHighlights.get(playerId);
+        if (groups == null) return;
+        Map<Block, LocationHighlight> blocks = groups.get(key);
+        if (blocks == null) return;
+        LocationHighlight highlight = blocks.remove(block);
+        if (highlight == null) return;
+        if (blocks.isEmpty()) groups.remove(key);
+        if (groups.isEmpty()) locationHighlights.remove(playerId);
+
+        List<LocationHighlight> remaining = trackedLocationHighlights();
+        if (remaining.stream().noneMatch(h -> h.display() == highlight.display()
+                && h.player().getUniqueId().equals(playerId))) {
+            highlight.display().hideForPlayer(highlight.player(), true);
+        }
+        if (remaining.stream().noneMatch(h -> h.display() == highlight.display())
+                && BlockHighlighter.getHighlightDisplay(block) == highlight.display()) {
+            BlockHighlighter.unhighlightBlock(block);
+        }
+    }
+
+    private void clearLocationHighlights(UUID playerId, String key) {
+        Map<String, Map<Block, LocationHighlight>> groups = locationHighlights.get(playerId);
+        if (groups == null || !groups.containsKey(key)) return;
+        for (Block block : new ArrayList<>(groups.get(key).keySet())) {
+            clearLocationHighlight(playerId, key, block);
+        }
+    }
+
+    private void clearLocationHighlights(UUID playerId) {
+        Map<String, Map<Block, LocationHighlight>> groups = locationHighlights.get(playerId);
+        if (groups == null) return;
+        for (String key : new ArrayList<>(groups.keySet())) {
+            clearLocationHighlights(playerId, key);
+        }
+    }
+
+    @EventHandler
+    public void onPluginDisable(PluginDisableEvent event) {
+        if (event.getPlugin() != getPlugin()) return;
+        for (UUID playerId : new ArrayList<>(locationHighlights.keySet())) {
+            clearLocationHighlights(playerId);
+        }
     }
 
     private boolean inInThisEditor(Player player) {
@@ -133,29 +260,64 @@ public class WorldMarkerEditor extends AEditor {
         MCCodeCampLib.getEditorManager().leaveEditor(player);
     }
 
+    private HotbarItem createHotbarItem(Material type, Component name, List<Component> lore, String referenceId) {
+        return createHotbarItem(type, name, lore, referenceId, false);
+    }
+
     private HotbarItem createHotbarItem(Material type, Component name, List<Component> lore) {
+        return createHotbarItem(type, name, lore, "", false);
+    }
+
+    private HotbarItem createHotbarItem(Material type, Component name, List<Component> lore, String referenceId, boolean needsBlockTarget) {
         ItemStack itemStack = new ItemStack(type);
         ItemMeta meta = itemStack.getItemMeta();
         meta.customName(name);
         if (!(lore != null && lore.isEmpty())) meta.lore(lore);
         itemStack.setItemMeta(meta);
-        return new HotbarItem(getPlugin(), itemStack);
+        return configureHotbarItem(new HotbarItem(getPlugin(), itemStack), needsBlockTarget, referenceId);
     }
 
-    private void addPageNavigation(HotbarMenu menu, int page, int pageCount) {
-        if (pageCount <= 1) return;
-        if (page > 0) {
-            menu.setItemAt(0, menu.createPageChangeItem(
-                    createHotbarItem(Material.ARROW, Component.text("Previous", DISPLAY_OPTION.colorPalette().SECONDARY()),
-                            List.of(Component.text("Go to the previous page", DISPLAY_OPTION.colorPalette().HINT()))).getItem(),
-                    page - 1));
+    private HotbarItem configureHotbarItem(HotbarItem item, boolean needsBlockTarget, String referenceId) {
+        // Block icons must not produce client-side placement; targeting tools still need reach.
+        item.setNoInteractMode(item.getItem().getType().isBlock()
+                ? HotbarItem.NoInteractMode.Masquerade
+                : HotbarItem.NoInteractMode.Off);
+        item.setReferenceID(referenceId);
+        return item;
+    }
+
+    private void addPageNavigation(HotbarMenu menu, int pageCount) {
+        menu.setItemAt(0, createHotbarItem(Material.BARRIER,
+                Component.text("Cancel", DISPLAY_OPTION.colorPalette().ERROR()),
+                List.of(Component.text("Return to the home screen", DISPLAY_OPTION.colorPalette().HINT()).decoration(TextDecoration.ITALIC, false)))
+                .addBlockClickAction(e -> navigate(e.getPlayer(), "", new HashMap<>())));
+        // HotbarMenu displays nine consecutive indices per page; reserve slots 0 and 8.
+        for (int page = 0; page < pageCount; page++) {
+            int pageOffset = page * 9;
+            if (page > 0) {
+                menu.setItemAt(pageOffset, menu.createPageChangeItem(
+                        createHotbarItem(Material.ARROW, Component.text("Previous", DISPLAY_OPTION.colorPalette().SECONDARY()),
+                                List.of(Component.text("Go to the previous page", DISPLAY_OPTION.colorPalette().HINT()))).getItem(),
+                        page - 1).addHoverAction(pageHoverAction(menu, page - 1, 7)));
+            }
+            if (page < pageCount - 1) {
+                menu.setItemAt(pageOffset + 8, menu.createPageChangeItem(
+                        createHotbarItem(Material.ARROW, Component.text("Next", DISPLAY_OPTION.colorPalette().SECONDARY()),
+                                List.of(Component.text("Go to the next page", DISPLAY_OPTION.colorPalette().HINT()))).getItem(),
+                        page + 1).addHoverAction(pageHoverAction(menu, page + 1, 1)));
+            }
         }
-        if (page < pageCount - 1) {
-            menu.setItemAt(8, menu.createPageChangeItem(
-                    createHotbarItem(Material.ARROW, Component.text("Next", DISPLAY_OPTION.colorPalette().SECONDARY()),
-                            List.of(Component.text("Go to the next page", DISPLAY_OPTION.colorPalette().HINT()))).getItem(),
-                    page + 1));
-        }
+    }
+
+    private Consumer<Player> pageHoverAction(HotbarMenu menu, int targetPage, int targetSlot) {
+        return player -> {
+            // Let the original held-slot event finish before moving the selection.
+            Bukkit.getScheduler().runTask(getPlugin(), () -> {
+                if (!inInThisEditor(player)) return;
+                menu.show(player, targetPage);
+                menu.setHeldItemSlotQuietly(player, targetSlot);
+            });
+        };
     }
 
     private Button homeButton() {
@@ -166,7 +328,19 @@ public class WorldMarkerEditor extends AEditor {
         return actionButton("Exit", DISPLAY_OPTION.colorPalette().ERROR(), this::exitPlayer);
     }
 
+    private HotbarItem exitHotbaritem() {
+        ItemStack item = new ItemStack(Material.BARRIER);
+        ItemMeta meta = item.getItemMeta();
+        meta.customName(Component.text("Exit Editor", NamedTextColor.RED).decoration(TextDecoration.ITALIC, false));
+        item.setItemMeta(meta);
+        return configureHotbarItem(new HotbarItem(getPlugin(), item), false, "").addBlockClickAction(e -> {
+            exitPlayer(e.getPlayer());
+        });
+    }
+
     private void showHomeDialog(Player player, Map<String, Object> context) {
+        // Every creation cancel path (chat, hotbar, or input cancellation) returns Home.
+        clearLocationHighlights(player.getUniqueId(), CREATION_HIGHLIGHT_KEY);
         Map<String, Object> clonedContext = new HashMap<>(context);
 
         Map<String, Object> objectCreationBasicArgumentMap = Map.ofEntries(
@@ -194,23 +368,28 @@ public class WorldMarkerEditor extends AEditor {
         hotbarMenu.setItemAt(1, createHotbarItem(
                 Material.NETHER_STAR,
                 Component.text("Create", DISPLAY_OPTION.colorPalette().GREEN()),
-                List.of(Component.text("Creates a new object of you choosing at the location you click", DISPLAY_OPTION.colorPalette().HINT())))
+                List.of(Component.text("Creates a new object of you choosing at the location you click", DISPLAY_OPTION.colorPalette().HINT())), "", true)
                 .addBlockClickAction(e -> {
                     Block block = e.getClickedBlock();
                     Map<String, Object> arguments = new HashMap<>(objectCreationBasicArgumentMap);
                     if (block != null) {
                         arguments.put("generic_inputted_location", block.getLocation());
+                        highlightLocation(e.getPlayer(), block.getLocation());
                     }
+                    MCCodeCampLib.getEditorManager().deselect(player);
                     navigate(e.getPlayer(), DIALOG_TYPE_SELECTOR, arguments);
                 })
         );
         hotbarMenu.setItemAt(4, createHotbarItem(
                 Material.REDSTONE,
                 Component.text("Delete", DISPLAY_OPTION.colorPalette().ERROR()),
-                List.of(Component.text("Select an existing object to remove", DISPLAY_OPTION.colorPalette().HINT())))
-                .addBlockClickAction(e -> navigate(e.getPlayer(), DIALOG_OBJECT_SELECTOR,
-                        Map.of("purpose", "object_deletion"))));
-        hotbarMenu.setItemAt(7, hotbarMenu.createExitItem(new ItemStack(Material.BARRIER)));
+                List.of(Component.text("Select an existing object to remove", DISPLAY_OPTION.colorPalette().HINT())), "home_delete_item")
+                .addBlockClickAction(e -> {
+                    MCCodeCampLib.getEditorManager().deselect(player);
+                    navigate(e.getPlayer(), DIALOG_OBJECT_SELECTOR,
+                            Map.of("purpose", "object_deletion"));
+                }));
+        hotbarMenu.setItemAt(7, exitHotbaritem());
         hotbarMenu.show(player);
     }
 
@@ -230,12 +409,9 @@ public class WorldMarkerEditor extends AEditor {
         List<Map.Entry<String, RegistryObjectType>> objectTypes = new ArrayList<>(MCCodeCampLib.getBlockMarkerRegistry().getObjectTypes().entrySet());
         int pageCount = Math.max(1, (objectTypes.size() + 6) / 7);
         hotbarPage = Math.max(0, Math.min(hotbarPage, pageCount - 1));
-        int firstObjectType = hotbarPage * 7;
-        int lastObjectType = Math.min(firstObjectType + 7, objectTypes.size());
-
-        for (int objectTypeIndex = firstObjectType; objectTypeIndex < lastObjectType; objectTypeIndex++) {
+        for (int objectTypeIndex = 0; objectTypeIndex < objectTypes.size(); objectTypeIndex++) {
             Map.Entry<String, RegistryObjectType> entry = objectTypes.get(objectTypeIndex);
-            int hotbarIndex = 1 + objectTypeIndex - firstObjectType;
+            int hotbarIndex = (objectTypeIndex / 7) * 9 + 1 + objectTypeIndex % 7;
 
             Button button = Button.create() // create a button with a action that sends the player to the next dialog with the added context of what was selected
                     .addAction(CustomAction.create(p -> {
@@ -280,7 +456,7 @@ public class WorldMarkerEditor extends AEditor {
             }
 
             item.setItemMeta(meta);
-            HotbarItem hItem = new HotbarItem(getPlugin(), item);
+            HotbarItem hItem = configureHotbarItem(new HotbarItem(getPlugin(), item), false, "");
             hItem.addBlockClickAction(e -> {
                 clonedContext.remove("!" + DIALOG_TYPE_SELECTOR + "_hotbarPage");
                 clonedContext.put(DIALOG_TYPE_SELECTOR + "_result", entry.getValue().getTypeID());
@@ -293,7 +469,7 @@ public class WorldMarkerEditor extends AEditor {
 
             question.addButton(button);
         }
-        addPageNavigation(hotbarMenu, hotbarPage, pageCount);
+        addPageNavigation(hotbarMenu, pageCount);
         question.show(player);
         hotbarMenu.show(player, hotbarPage);
     }
@@ -324,13 +500,14 @@ public class WorldMarkerEditor extends AEditor {
         hotbarMenu.setItemAt(0, createHotbarItem(Material.NAME_TAG,
                 Component.text("Enter ID in chat", DISPLAY_OPTION.colorPalette().SECONDARY()),
                 List.of(Component.text("Use the chat prompt to enter the marker ID", DISPLAY_OPTION.colorPalette().HINT()))));
-        hotbarMenu.setItemAt(8, hotbarMenu.createExitItem(new ItemStack(Material.BARRIER)));
+        hotbarMenu.setItemAt(8, exitHotbaritem());
         hotbarMenu.show(player);
     }
 
     private void showLocationInputSelectionDialog(Player player, Map<String, Object> context) {
         if (context.get("generic_inputted_location") instanceof Location loc) {
-            afterLocationInputHelper(player, context, loc);
+            // Already highlighted immediately by the Home item; keep the existing display.
+            afterLocationInputHelper(player, context, loc, false);
             return;
         }
 
@@ -360,7 +537,7 @@ public class WorldMarkerEditor extends AEditor {
                         Component.text("Click a block to select a location", DISPLAY_OPTION.colorPalette().HINT()),
                         Component.text("Click air to select your player's location", DISPLAY_OPTION.colorPalette().HINT()),
                         Component.text("Shift click air to select your player's eye's location", DISPLAY_OPTION.colorPalette().HINT())
-                )).addBlockClickAction(e -> {
+                ), "", true).addBlockClickAction(e -> {
                     Block block = e.getClickedBlock();
                     Player p = e.getPlayer();
                     if (block != null) {
@@ -395,11 +572,16 @@ public class WorldMarkerEditor extends AEditor {
         hotbarMenu.setItemAt(0, createHotbarItem(Material.NAME_TAG,
                 Component.text("Enter coordinates in chat", DISPLAY_OPTION.colorPalette().SECONDARY()),
                 List.of(Component.text("Use the chat prompt to enter x y z", DISPLAY_OPTION.colorPalette().HINT()))));
-        hotbarMenu.setItemAt(8, hotbarMenu.createExitItem(new ItemStack(Material.BARRIER)));
+        hotbarMenu.setItemAt(8, exitHotbaritem());
         hotbarMenu.show(player);
     }
 
     private void afterLocationInputHelper(Player player, Map<String, Object> context, Location inputtedLocation) {
+        afterLocationInputHelper(player, context, inputtedLocation, true);
+    }
+
+    private void afterLocationInputHelper(Player player, Map<String, Object> context, Location inputtedLocation,
+                                          boolean highlightSelection) {
         String purposeContext = context.get("purpose") instanceof String s ? s : ""; // set to the extracted purpose or set to empty string
 
         Location finishedLocation = inputtedLocation; // formating location if necessary
@@ -425,6 +607,7 @@ public class WorldMarkerEditor extends AEditor {
                     sendErrorToPlayer(player, "Inputs wheren passed correctly. Report to developer!");
                     return;
                 }
+                if (highlightSelection) highlightLocation(player, finishedLocation);
                 Map<String, Object> confirmationContext = new HashMap<>(context);
                 confirmationContext.put(DIALOG_TYPE_SELECTOR + "_result", type);
                 confirmationContext.put(DIALOG_ID_INPUT + "_result", id);
@@ -453,10 +636,7 @@ public class WorldMarkerEditor extends AEditor {
         int pageCount = Math.max(1, (objects.size() + 6) / 7);
         hotbarPage = Math.max(0, Math.min(hotbarPage, pageCount - 1));
         HotbarMenu hotbarMenu = new HotbarMenu(getPlugin());
-        int firstObject = hotbarPage * 7;
-        int lastObject = Math.min(firstObject + 7, objects.size());
-
-        for (int objectIndex = firstObject; objectIndex < lastObject; objectIndex++) {
+        for (int objectIndex = 0; objectIndex < objects.size(); objectIndex++) {
             IBlockRegestryObject obj = objects.get(objectIndex);
             Component buttonText = Component.text("[" + obj.getTypeID(), DISPLAY_OPTION.colorPalette().HINT())
                     .append(Component.text(":", DISPLAY_OPTION.colorPalette().HINT()))
@@ -472,7 +652,7 @@ public class WorldMarkerEditor extends AEditor {
                     }));
             question.addButton(button);
 
-            hotbarMenu.setItemAt(1 + objectIndex - firstObject,
+            hotbarMenu.setItemAt((objectIndex / 7) * 9 + 1 + objectIndex % 7,
                     createHotbarItem(Material.PAPER,
                             Component.text(obj.getTypeID() + ":" + obj.getID(), DISPLAY_OPTION.colorPalette().SECONDARY()),
                             List.of(Component.text("Click to select this object for deletion", DISPLAY_OPTION.colorPalette().HINT())))
@@ -483,9 +663,15 @@ public class WorldMarkerEditor extends AEditor {
                             }));
         }
 
-        addPageNavigation(hotbarMenu, hotbarPage, pageCount);
+        addPageNavigation(hotbarMenu, pageCount);
         question.show(player);
         hotbarMenu.show(player, hotbarPage);
+    }
+
+    private Component confirmationDetail(String label, String value) {
+        return Component.text(label + ": ", DISPLAY_OPTION.colorPalette().HINT())
+                .decoration(TextDecoration.ITALIC, false)
+                .append(Component.text(value).decoration(TextDecoration.ITALIC, true));
     }
 
     private void showConfirmDeletionDialog(Player player, Map<String, Object> context) {
@@ -516,10 +702,10 @@ public class WorldMarkerEditor extends AEditor {
 
         Location location = registryObject.getLocation();
         Component review = Component.text("Delete marker", DISPLAY_OPTION.colorPalette().PRIMARY())
-                .appendNewline().append(Component.text("Type: " + registryObject.getTypeID(), DISPLAY_OPTION.colorPalette().HINT()))
-                .appendNewline().append(Component.text("ID: " + registryObject.getID(), DISPLAY_OPTION.colorPalette().HINT()))
-                .appendNewline().append(Component.text("World: " + location.getWorld().getName(), DISPLAY_OPTION.colorPalette().HINT()))
-                .appendNewline().append(Component.text("Coordinates: " + location.getBlockX() + " " + location.getBlockY() + " " + location.getBlockZ(), DISPLAY_OPTION.colorPalette().HINT()));
+                .appendNewline().append(confirmationDetail("Type", registryObject.getTypeID()))
+                .appendNewline().append(confirmationDetail("ID", registryObject.getID()))
+                .appendNewline().append(confirmationDetail("World", location.getWorld().getName()))
+                .appendNewline().append(confirmationDetail("Coordinates", location.getBlockX() + " " + location.getBlockY() + " " + location.getBlockZ()));
 
         GenericQuestion.create(createGenericQuestionHeader(context, DIALOG_CONFIRM_DELETE + "_message", player)
                 .append(review))
@@ -534,10 +720,10 @@ public class WorldMarkerEditor extends AEditor {
         hotbarMenu.setItemAt(3, createHotbarItem(Material.RED_CONCRETE,
                 Component.text("Confirm deletion", DISPLAY_OPTION.colorPalette().ERROR()),
                 List.of(
-                        Component.text("Type: " + registryObject.getTypeID(), DISPLAY_OPTION.colorPalette().HINT()),
-                        Component.text("ID: " + registryObject.getID(), DISPLAY_OPTION.colorPalette().HINT()),
-                        Component.text("World: " + location.getWorld().getName(), DISPLAY_OPTION.colorPalette().HINT()),
-                        Component.text("Coordinates: " + location.getBlockX() + " " + location.getBlockY() + " " + location.getBlockZ(), DISPLAY_OPTION.colorPalette().HINT()),
+                        confirmationDetail("Type", registryObject.getTypeID()),
+                        confirmationDetail("ID", registryObject.getID()),
+                        confirmationDetail("World", location.getWorld().getName()),
+                        confirmationDetail("Coordinates", location.getBlockX() + " " + location.getBlockY() + " " + location.getBlockZ()),
                         Component.text("This cannot be undone", DISPLAY_OPTION.colorPalette().HINT())
                 ))
                 .addBlockClickAction(e -> {
@@ -546,7 +732,7 @@ public class WorldMarkerEditor extends AEditor {
                 }));
         hotbarMenu.setItemAt(5, createHotbarItem(Material.LIME_CONCRETE,
                 Component.text("Cancel", DISPLAY_OPTION.colorPalette().SUCCESS()),
-                List.of(Component.text("Keep the selected object", DISPLAY_OPTION.colorPalette().HINT())))
+                List.of(Component.text("Keep the selected object", DISPLAY_OPTION.colorPalette().HINT()).decoration(TextDecoration.ITALIC, false)))
                 .addBlockClickAction(e -> navigate(e.getPlayer(), "", Map.ofEntries(Map.entry("home_message", Component.text("Cancelled removal of object", DISPLAY_OPTION.colorPalette().ERROR()))))));
         hotbarMenu.show(player);
 
@@ -562,10 +748,10 @@ public class WorldMarkerEditor extends AEditor {
         }
 
         Component review = Component.text("Create marker", DISPLAY_OPTION.colorPalette().PRIMARY())
-                .appendNewline().append(Component.text("Type: " + type, DISPLAY_OPTION.colorPalette().HINT()))
-                .appendNewline().append(Component.text("ID: " + id, DISPLAY_OPTION.colorPalette().HINT()))
-                .appendNewline().append(Component.text("World: " + location.getWorld().getName(), DISPLAY_OPTION.colorPalette().HINT()))
-                .appendNewline().append(Component.text("Coordinates: " + location.getBlockX() + " " + location.getBlockY() + " " + location.getBlockZ(), DISPLAY_OPTION.colorPalette().HINT()));
+                .appendNewline().append(confirmationDetail("Type", type))
+                .appendNewline().append(confirmationDetail("ID", id))
+                .appendNewline().append(confirmationDetail("World", location.getWorld().getName()))
+                .appendNewline().append(confirmationDetail("Coordinates", location.getBlockX() + " " + location.getBlockY() + " " + location.getBlockZ()));
 
         GenericQuestion.create(createGenericQuestionHeader(context, DIALOG_CONFIRM_CREATE + "_message", player).append(review))
                 .addButton(actionButton("Confirm", DISPLAY_OPTION.colorPalette().SUCCESS(), p -> {
@@ -583,10 +769,10 @@ public class WorldMarkerEditor extends AEditor {
         hotbarMenu.setItemAt(3, createHotbarItem(Material.LIME_CONCRETE,
                 Component.text("Confirm creation", DISPLAY_OPTION.colorPalette().SUCCESS()),
                 List.of(
-                        Component.text("Type: " + type, DISPLAY_OPTION.colorPalette().HINT()),
-                        Component.text("ID: " + id, DISPLAY_OPTION.colorPalette().HINT()),
-                        Component.text("World: " + location.getWorld().getName(), DISPLAY_OPTION.colorPalette().HINT()),
-                        Component.text("Coordinates: " + location.getBlockX() + " " + location.getBlockY() + " " + location.getBlockZ(), DISPLAY_OPTION.colorPalette().HINT())
+                        confirmationDetail("Type", type),
+                        confirmationDetail("ID", id),
+                        confirmationDetail("World", location.getWorld().getName()),
+                        confirmationDetail("Coordinates", location.getBlockX() + " " + location.getBlockY() + " " + location.getBlockZ())
                 )).addBlockClickAction(e -> {
                     IBlockRegestryObject created = createNewRegistryEntry(type, id, location);
                     navigate(e.getPlayer(), "", Map.ofEntries(Map.entry("home_message", Component.text(
@@ -595,7 +781,7 @@ public class WorldMarkerEditor extends AEditor {
                 }));
         hotbarMenu.setItemAt(5, createHotbarItem(Material.RED_CONCRETE,
                 Component.text("Cancel", DISPLAY_OPTION.colorPalette().ERROR()),
-                List.of(Component.text("Do not create this marker", DISPLAY_OPTION.colorPalette().HINT())))
+                List.of(Component.text("Do not create this marker", DISPLAY_OPTION.colorPalette().HINT()).decoration(TextDecoration.ITALIC, false)))
                 .addBlockClickAction(e -> navigate(e.getPlayer(), "", Map.ofEntries(Map.entry("home_message", Component.text("Cancelled marker creation", DISPLAY_OPTION.colorPalette().ERROR()))))));
         hotbarMenu.show(player);
     }
@@ -676,4 +862,6 @@ public class WorldMarkerEditor extends AEditor {
             default -> showHomeDialog(player, context);
         }
     }
+
+
 }

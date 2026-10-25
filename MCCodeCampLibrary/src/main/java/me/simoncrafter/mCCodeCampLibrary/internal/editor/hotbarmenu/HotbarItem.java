@@ -1,11 +1,16 @@
 package me.simoncrafter.mCCodeCampLibrary.internal.editor.hotbarmenu;
 
+
 import io.papermc.paper.event.player.PrePlayerAttackEntityEvent;
+import me.simoncrafter.CraftersDisplayLibrary.effect.highlighter.BlockHighlighter;
 import net.kyori.adventure.text.Component;
 import org.apache.logging.log4j.util.TriConsumer;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeModifier;
+import org.bukkit.entity.Minecart;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.HandlerList;
@@ -14,8 +19,10 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.inventory.EquipmentSlotGroup;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -31,7 +38,10 @@ public class HotbarItem implements Listener, Cloneable {
 
     private Plugin plugin;
     private UUID uuid;
+    private String referenceID = ""; // for identifying the item when its used elsewhere without reference to the Hotbar item instance
     private ItemStack item;
+    private Material masqueradedMaterial;
+    private NamespacedKey originalItemModel;
 
     private Set<Consumer<PlayerInteractEvent>> blockClickActions = new HashSet<>();
     private Set<Consumer<PlayerInteractEntityEvent>> rightClickEntityActions = new HashSet<>();
@@ -49,15 +59,18 @@ public class HotbarItem implements Listener, Cloneable {
         setItem(item);
     }
 
-    public HotbarItem(Plugin plugin, ItemStack item, Set<Consumer<PlayerInteractEvent>> blockClickActions, Set<Consumer<PlayerInteractEntityEvent>> rightClickEntityActions, Set<Consumer<PrePlayerAttackEntityEvent>> leftClickEntityActions, Set<Consumer<Player>> hoverActions, Set<Consumer<Player>> unHoverActions) {
+    private HotbarItem(Plugin plugin, ItemStack item, Set<Consumer<PlayerInteractEvent>> blockClickActions, Set<Consumer<PlayerInteractEntityEvent>> rightClickEntityActions, Set<Consumer<PrePlayerAttackEntityEvent>> leftClickEntityActions, Set<Consumer<Player>> hoverActions, Set<Consumer<Player>> unHoverActions, Material masqueradedMaterial, NamespacedKey originalItemModel, String referenceID) {
         this.plugin = plugin;
         this.uuid = UUID.randomUUID();
-        this.item = item;
+
         this.blockClickActions = blockClickActions;
         this.rightClickEntityActions = rightClickEntityActions;
         this.leftClickEntityActions = leftClickEntityActions;
         this.hoverActions = hoverActions;
         this.unHoverActions = unHoverActions;
+        this.masqueradedMaterial = masqueradedMaterial;
+        this.originalItemModel = originalItemModel;
+        this.referenceID = referenceID;
 
         setItem(item);
     }
@@ -71,6 +84,25 @@ public class HotbarItem implements Listener, Cloneable {
         player.getPersistentDataContainer().set(ITEM_DEBOUNCE_TIMESTAMP, PersistentDataType.INTEGER, Bukkit.getCurrentTick());
         Bukkit.getPluginManager().registerEvents(this, plugin);
         numberOfCurrentUsages++;
+    }
+
+    /**
+     * Gets the reference ID of the item. It is appended at the end of the uuid string in PDC with the {@link #ITEM_KEY}.<br>
+     * You can check if an item has this reference id by retrieving the PDC value with the {@link #ITEM_KEY} and checking if it {@link String#endsWith(String)} your desired key
+     * @return The reference ID of this item
+     */
+    public String getReferenceID() {
+        return referenceID;
+    }
+
+    /**
+     * Gets the reference ID of the item. It is appended at the end of the uuid string in PDC with the {@link #ITEM_KEY}.<br>
+     * You can check if an item has this reference id by retrieving the PDC value with the {@link #ITEM_KEY} and checking if it {@link String#endsWith(String)} your desired key
+     * @param referenceID The id that should be applied to this item
+     */
+    public void setReferenceID(String referenceID) {
+        this.referenceID = referenceID;
+        setItem(item);
     }
 
     /**
@@ -102,18 +134,23 @@ public class HotbarItem implements Listener, Cloneable {
     }
 
     /**
-     * Sets the item bound to this HotbarItem, tagging it with this HotbarItem's identifier
-     * so it can later be recognised by {@link #isItem(ItemStack)}.
+     * Stores a clone of the supplied item, tagging only that owned copy with this HotbarItem's
+     * identifier so it can later be recognised by {@link #isItem(ItemStack)}.
      */
     public HotbarItem setItem(ItemStack item) {
-        item.editPersistentDataContainer(pdc -> pdc.set(ITEM_KEY, PersistentDataType.STRING, uuid.toString()));
-        this.item = item;
-
-        forEachInstance((player, slot, itemToSet) -> {
-            player.getInventory().setItem(slot, itemToSet);
-        });
-
+        this.item = Objects.requireNonNull(item, "item").clone();
+        // set the items uuid in the item key PDC and if reference id is set, appned it, else leave empty
+        this.item.editPersistentDataContainer(pdc -> pdc.set(ITEM_KEY, PersistentDataType.STRING, uuid.toString() + (!referenceID.isEmpty() ? "_" + referenceID : "")));
+        masqueradedMaterial = null;
+        originalItemModel = null;
+        refreshItemInInventories();
         return this;
+    }
+
+    private void refreshItemInInventories() {
+        forEachInstance((player, slot, current) -> {
+            player.getInventory().setItem(slot, this.item.clone());
+        });
     }
 
     /**
@@ -338,11 +375,73 @@ public class HotbarItem implements Listener, Cloneable {
 
     private boolean isItem(ItemStack item) {
         if (item == null) return false;
-        return item.getPersistentDataContainer().has(ITEM_KEY, PersistentDataType.STRING) && item.getPersistentDataContainer().getOrDefault(ITEM_KEY, PersistentDataType.STRING, "").equals(uuid.toString());
+        return item.getPersistentDataContainer().has(ITEM_KEY, PersistentDataType.STRING) && item.getPersistentDataContainer().getOrDefault(ITEM_KEY, PersistentDataType.STRING, "").startsWith(uuid.toString());
     }
 
     @Override
     protected HotbarItem clone() {
-        return new HotbarItem(plugin, item, blockClickActions, rightClickEntityActions, leftClickEntityActions, hoverActions, unHoverActions);
+        return new HotbarItem(plugin, item, blockClickActions, rightClickEntityActions, leftClickEntityActions, hoverActions, unHoverActions, masqueradedMaterial, originalItemModel, referenceID);
+    }
+
+    /**
+     * Changes the items properties so the clients don't display the item being used (e.g. when it's a block that it gets placed for a tick on the client). <br>
+     * Reach modes prevent targeting the corresponding blocks/entities. Masquerade only changes the base item and model.<br>
+     * Switching modes removes this feature's previous changes without clearing unrelated metadata or modifiers.
+     */
+    public void setNoInteractMode(NoInteractMode mode) {
+        Objects.requireNonNull(mode, "mode");
+        ItemStack updatedItem = item;
+        if (masqueradedMaterial != null) {
+            updatedItem.setType(masqueradedMaterial);
+        }
+        ItemMeta meta = updatedItem.getItemMeta();
+        if (masqueradedMaterial != null) {
+            meta.setItemModel(originalItemModel);
+            masqueradedMaterial = null;
+            originalItemModel = null;
+        }
+
+        // Remove only this feature's modifiers, including when switching between modes.
+        AttributeModifier blockReach = noReachModifier("no_block_reach");
+        AttributeModifier entityReach = noReachModifier("no_entity_reach");
+        meta.removeAttributeModifier(Attribute.BLOCK_INTERACTION_RANGE, blockReach);
+        meta.removeAttributeModifier(Attribute.ENTITY_INTERACTION_RANGE, entityReach);
+        switch (mode) {
+            case Off -> { }
+            case NoReach -> {
+                meta.addAttributeModifier(Attribute.BLOCK_INTERACTION_RANGE, blockReach);
+                meta.addAttributeModifier(Attribute.ENTITY_INTERACTION_RANGE, entityReach);
+            }
+            case NoBlockReach -> meta.addAttributeModifier(Attribute.BLOCK_INTERACTION_RANGE, blockReach);
+            case NoEntityReach -> meta.addAttributeModifier(Attribute.ENTITY_INTERACTION_RANGE, entityReach);
+            case Masquerade -> {
+                masqueradedMaterial = updatedItem.getType();
+                originalItemModel = meta.getItemModel();
+                meta.setItemModel(originalItemModel != null ? originalItemModel : masqueradedMaterial.getKey());
+                updatedItem.setType(Material.STICK);
+            }
+        }
+        updatedItem.setItemMeta(meta);
+        refreshItemInInventories();
+    }
+
+    private AttributeModifier noReachModifier(String key) {
+        return new AttributeModifier(new NamespacedKey(plugin, key), -1,
+                AttributeModifier.Operation.MULTIPLY_SCALAR_1, EquipmentSlotGroup.HAND);
+    }
+
+    /**
+     * {@link NoInteractMode#Off} -> Restores the original item type/model and removes this feature's reach modifiers.<br>
+     * {@link NoInteractMode#NoReach} -> Uses {@link NoInteractMode#NoEntityReach} and {@link NoInteractMode#NoBlockReach}<br>
+     * {@link NoInteractMode#NoBlockReach} -> Turns the block reach attribute of the item to 0<br>
+     * {@link NoInteractMode#NoEntityReach} -> Turns the entity reach attribute of the item to 0<br>
+     * {@link NoInteractMode#Masquerade} -> Changes the item type to a {@link Material#STICK} and sets the display item attribute to the current item type
+     */
+    public static enum NoInteractMode {
+        Off,
+        NoReach,
+        NoBlockReach,
+        NoEntityReach,
+        Masquerade
     }
 }

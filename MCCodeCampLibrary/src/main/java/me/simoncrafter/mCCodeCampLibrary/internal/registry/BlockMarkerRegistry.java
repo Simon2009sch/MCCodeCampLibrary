@@ -326,6 +326,11 @@ public class BlockMarkerRegistry implements Listener {
      * object failed to construct.
      */
     public @Nullable IBlockRegestryObject createObject(String typeID, String id, Location location) {
+        return createObject(typeID, id, location, BasicConfigurationNode.root());
+    }
+
+    /** Creates a marker with its configuration available during initialization, before CREATE is published. */
+    public @Nullable IBlockRegestryObject createObject(String typeID, String id, Location location, ConfigurationNode config) {
         if (id == null || id.isBlank()) return null;
         RegistryObjectType objectType = objectTypes.get(typeID);
         if (objectType == null) {
@@ -346,11 +351,43 @@ public class BlockMarkerRegistry implements Listener {
             return null;
         }
 
-        obj.init(PLUGIN, location, id, objectType, BasicConfigurationNode.root(), UUID.randomUUID(), this);
+        try {
+            obj.init(PLUGIN, location, id, objectType, config.copy(), UUID.randomUUID(), this);
+        } catch (RuntimeException e) {
+            obj.destroy();
+            PLUGIN_LOGGER.warning("Failed to initialize marker configuration: " + e.getMessage());
+            return null;
+        }
         putObject(typeID, id, obj);
         appendObjectNode(obj);
         new BlockRegistryUpdateEvent(CREATE, obj).callEvent();
         return obj;
+    }
+
+    /**
+     * Testing/config-import operation: reloads a loaded marker with new config and the same identity.
+     * Existing selections/object editors are invalidated through UNLOAD/LOAD, not silently left stale.
+     */
+    public @Nullable IBlockRegestryObject replaceObjectConfig(UUID uuid, ConfigurationNode config) {
+        IBlockRegestryObject previous = findRegisteredObject(uuid);
+        if (previous == null) return null;
+        RegistryObjectType type = objectTypes.get(previous.getTypeID());
+        if (type == null) return null;
+        IBlockRegestryObject replacement = null;
+        try {
+            replacement = type.getCreateObjectAction().call();
+            replacement.init(PLUGIN, previous.getLocation().clone(), previous.getID(), type,
+                    config.copy(), previous.getUUID(), this);
+        } catch (Exception e) {
+            if (replacement != null) replacement.destroy();
+            PLUGIN_LOGGER.warning("Failed to reload marker configuration: " + e.getMessage());
+            return null;
+        }
+        new BlockRegistryUpdateEvent(UNLOAD, previous).callEvent();
+        putObject(previous.getTypeID(), previous.getID(), replacement);
+        saveObject(replacement);
+        new BlockRegistryUpdateEvent(LOAD, replacement).callEvent();
+        return replacement;
     }
 
     private void appendObjectNode(IBlockRegestryObject obj) {

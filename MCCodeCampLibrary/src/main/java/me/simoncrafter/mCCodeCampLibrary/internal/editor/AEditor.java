@@ -122,7 +122,7 @@ public abstract class AEditor implements Listener {
         return new HashSet<>(players);
     }
 
-    protected Plugin getPlugin() {
+    protected final Plugin getPlugin() {
         return plugin;
     }
 

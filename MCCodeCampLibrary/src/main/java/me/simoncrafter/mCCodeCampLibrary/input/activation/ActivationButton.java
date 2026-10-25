@@ -96,14 +96,9 @@ public class ActivationButton implements IBlockRegestryObject, Listener, IEditab
 
         blockData = readBlockdata("blockdata");
         cooldownBlockdata = readBlockdata("cooldownBlockdata");
-        if (config.hasChild("cooldown")) {
-            int cooldownTime = config.node("cooldown").getInt();
-            cooldown = new Cooldown(cooldownTime);
-            cooldown.registerCallback(this::cooldownElapseCallback);
-            cooldown.registerStartCallback(this::cooldownStartCallback);
-        } else {
-            cooldown = new Cooldown(0);
-        }
+        cooldown = new Cooldown(config.node("cooldown").getInt(0));
+        cooldown.registerCallback(this::cooldownElapseCallback);
+        cooldown.registerStartCallback(this::cooldownStartCallback);
 
     }
 
@@ -142,7 +137,7 @@ public class ActivationButton implements IBlockRegestryObject, Listener, IEditab
     public void setCooldown(int cooldown) {
         this.cooldown.setCooldown(cooldown);
         try {
-            config.node("blockdata").set(cooldown);
+            config.node("cooldown").set(cooldown);
         } catch (SerializationException e) {
             plugin.getLogger().warning("Failed to serialize cooldown while saving!");
         }
@@ -154,8 +149,14 @@ public class ActivationButton implements IBlockRegestryObject, Listener, IEditab
     }
 
     public void setCooldownInstance(Cooldown cooldown) {
+        Objects.requireNonNull(cooldown, "cooldown");
+        if (this.cooldown != cooldown) {
+            if (this.cooldown != null) this.cooldown.dispose();
+            this.cooldown = cooldown;
+            cooldown.registerCallback(this::cooldownElapseCallback);
+            cooldown.registerStartCallback(this::cooldownStartCallback);
+        }
         setCooldown(cooldown.getCooldown());
-        this.cooldown = cooldown;
     }
 
     /**
@@ -356,11 +357,12 @@ public class ActivationButton implements IBlockRegestryObject, Listener, IEditab
     /**
      * Releases the button's world attachments: removes the display entities, then
      * unregisters this object's event handlers. Idempotent; the instance stays inert
-     * and safe to reference after this call. The cooldown is timestamp-based and needs
-     * no cancellation.
+     * and safe to reference after this call. Its cooldown is removed from the central
+     * list without firing further callbacks.
      */
     @Override
     public void destroy() {
+        if (cooldown != null) cooldown.dispose();
         deleteDisplayEntities();
         visibleToPlayers.clear();
         selectedByPlayers.clear();

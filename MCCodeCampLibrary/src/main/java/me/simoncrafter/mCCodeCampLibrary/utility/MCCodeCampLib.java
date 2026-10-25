@@ -19,6 +19,7 @@ import net.kyori.adventure.text.Component;
 import org.bukkit.*;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
 
@@ -34,6 +35,7 @@ public class MCCodeCampLib {
     private static ItemsManager itemsManager;
     private static EditorManager editorManager;
     private static long currentDisplayPluginIteration = 0;
+    private static BukkitRunnable cooldownTickLoop;
 
     private static AOpenableObject door;
 
@@ -100,9 +102,22 @@ public class MCCodeCampLib {
             DisplayPersistence.removeAllIterations(w);
         }
 
+        cooldownTickLoop = new BukkitRunnable() {
+            @Override
+            public void run() {
+                Cooldown.tickAll();
+            }
+        };
+        cooldownTickLoop.runTaskTimer(plugin, 1L, 1L);
+
     }
 
     public static void onDisable() {
+        if (cooldownTickLoop != null) {
+            cooldownTickLoop.cancel();
+            cooldownTickLoop = null;
+        }
+        Cooldown.disposeAll();
         HotbarMenu.onDisablePlugin();
     }
 

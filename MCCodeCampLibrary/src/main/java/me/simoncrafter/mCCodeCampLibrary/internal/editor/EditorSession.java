@@ -1,5 +1,7 @@
 package me.simoncrafter.mCCodeCampLibrary.internal.editor;
 
+import me.simoncrafter.mCCodeCampLibrary.internal.editor.events.PlayerChangeSelectionOfObjectEvent;
+import me.simoncrafter.mCCodeCampLibrary.utility.MCCodeCampLib;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.Nullable;
 
@@ -88,9 +90,10 @@ public class EditorSession {
         EditorFrame frame = editorStack.peek();
         if (frame == null) return false;
         if (frame.getEditor().getEditableObjects().containsValue(editable)) {
-            if (frame.getSelection() != null) frame.getSelection().deselect(player);
+            if (frame.getSelection() != null) deselect();
             frame.setSelection(editable);
             editable.select(player);
+            new PlayerChangeSelectionOfObjectEvent(player, editable, PlayerChangeSelectionOfObjectEvent.Action.SELECT).callEvent();
             return true;
         }
         return false;
@@ -99,8 +102,10 @@ public class EditorSession {
     boolean deselect() {
         EditorFrame frame = editorStack.peek();
         if (frame == null || frame.getSelection() == null) return false;
+        IEditable prevSelection = frame.getSelection();
         frame.getSelection().deselect(player);
         frame.setSelection(null);
+        new PlayerChangeSelectionOfObjectEvent(player, prevSelection, PlayerChangeSelectionOfObjectEvent.Action.DESELECT).callEvent();
         return true;
     }
 
@@ -111,6 +116,9 @@ public class EditorSession {
      * @return Returns the number of steps it went outside of an editor
      */
     protected int goTo(AEditor parent, AEditor child) {
+        if (parent == null && child != null) {
+            return popToParentOf(child);
+        }
         // check if editorframe with parent editor is in stack, else skip
         if (editorStack.isEmpty() || editorStack.stream().noneMatch(e -> e.getEditor() == parent)) {
             return 0;
@@ -124,6 +132,23 @@ public class EditorSession {
         return popCount;
     }
 
+    private int popToParentOf(AEditor child) {
+        if (editorStack.isEmpty() || editorStack.stream().noneMatch(e -> e.getEditor() == child)) {
+            return 0;
+        }
+        // at time of writing, in the while loop the getEditor is getting flagged for might producing a nullpointer. Even with this statement it still is marked
+        if (editorStack.peek().getEditor() == null || editorStack == null || editorStack.peek() == null) {
+            MCCodeCampLib.getPluginLogger().warning("Editor is null even tough it shouldn't be. Report this to Developer! (Tell him error/warn is in EditorSession#popToParentOf)");
+            return 0;
+        }
+        int popcout = 1;
+        while (editorStack.peek().getEditor() != child) {
+            editorStack.pop();
+            popcout++;
+        }
+        editorStack.pop(); // pop child aswell
+        return popcout;
+    }
 
     // send a deselect signal to the Editable (just to be safe), and set the players selection to NULL if the player have selected that object
     void onEditableUnload(UUID uuid) {

@@ -1,33 +1,19 @@
 package me.simoncrafter.mCCodeCampLibrary.input.activation;
 
-import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.questions.ConfigEditQuestion.ConfigEditQuestion;
-import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.questions.ConfigEditQuestion.ConfigEditData;
-import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.questions.ConfigEditQuestion.ConfigEditPlayerData;
-import me.simoncrafter.CraftersDisplayLibrary.core.PositionObject;
-import me.simoncrafter.CraftersDisplayLibrary.display.cube.CubeColorDisplay;
-import me.simoncrafter.CraftersDisplayLibrary.display.cube.CubeColorInformation;
-import me.simoncrafter.CraftersDisplayLibrary.display.panel.TextDisplay;
-import me.simoncrafter.CraftersDisplayLibrary.display.wireframecube.WireframeCubeColorDisplay;
-import me.simoncrafter.CraftersDisplayLibrary.display.wireframecube.WireframeCubeColorInformation;
-import me.simoncrafter.CraftersDisplayLibrary.entity.InteractionBox;
 import me.simoncrafter.mCCodeCampLibrary.input.activation.event.playerBlockActivation.ButtonIDEvent;
-import me.simoncrafter.mCCodeCampLibrary.internal.editor.AEditor;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.IEditable;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.IEditorObjectDescriptor;
+import me.simoncrafter.mCCodeCampLibrary.internal.editor.display.EditableDisplay;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.events.PlayerClickEditableObjectEvent;
 import me.simoncrafter.mCCodeCampLibrary.internal.registry.IBlockRegestryObject;
 import me.simoncrafter.mCCodeCampLibrary.internal.registry.BlockMarkerRegistry;
 import me.simoncrafter.mCCodeCampLibrary.internal.registry.RegistryObjectType;
 import me.simoncrafter.mCCodeCampLibrary.utility.Cooldown;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.block.data.BlockData;
-import org.bukkit.entity.Display;
-import org.bukkit.entity.Interaction;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -37,13 +23,12 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
-import org.joml.Quaternionf;
-import org.joml.Vector3f;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
 
-import java.util.*;
-import java.util.function.BiConsumer;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
 
 public class ActivationButton implements IBlockRegestryObject, Listener, IEditable, IEditorObjectDescriptor {
 
@@ -67,16 +52,8 @@ public class ActivationButton implements IBlockRegestryObject, Listener, IEditab
     private BlockData cooldownBlockdata = null;
     private Cooldown cooldown;
 
-    //editable related
-    private CubeColorDisplay displayObject = null;
-    private TextDisplay displayLabel = null;
-    private InteractionBox interactionBox = null;
-    private WireframeCubeColorDisplay displaySelection = null;
-    private boolean selectionDisplaySpawned = false;
-
-    private Set<Player> visibleToPlayers = new HashSet<>();
-    private Set<Player> selectedByPlayers = new HashSet<>();
-
+    // Shared editor visuals; visibility, selection and entity cleanup belong to the helper.
+    private EditableDisplay editorDisplay;
 
     //configuration editing
     private Map<String, Object> configEditValues = null;
@@ -84,6 +61,10 @@ public class ActivationButton implements IBlockRegestryObject, Listener, IEditab
 
     @Override
     public void init(Plugin plugin, Location loc, String ID, RegistryObjectType objectType, ConfigurationNode config, UUID uuid, BlockMarkerRegistry registryInstance) {
+        if (editorDisplay != null) {
+            editorDisplay.remove();
+            editorDisplay = null;
+        }
         this.plugin = plugin;
         location = loc;
         this.ID = ID;
@@ -99,6 +80,9 @@ public class ActivationButton implements IBlockRegestryObject, Listener, IEditab
         cooldown = new Cooldown(config.node("cooldown").getInt(0));
         cooldown.registerCallback(this::cooldownElapseCallback);
         cooldown.registerStartCallback(this::cooldownStartCallback);
+
+        editorDisplay = new EditableDisplay(location.clone().add(0.5, 0.5, 0.5), plugin, Component.text(ID), this::onRightClickDisplay);
+        editorDisplay.setStyle(new EditableDisplay.Style(Color.fromARGB(50, 0, 200, 50), Color.YELLOW, 0.01f));
 
     }
 
@@ -189,124 +173,28 @@ public class ActivationButton implements IBlockRegestryObject, Listener, IEditab
 
     @Override
     public void showFor(Player player) {
-        if (visibleToPlayers.isEmpty() || displayObject == null || displayLabel == null || displaySelection == null) {
-            createDisplayEntities();
-        }
-        visibleToPlayers.add(player);
-        displayObject.showForPlayer(player);
-        displayLabel.showForPlayer(player);
-        interactionBox.showForPlayer(player);
-        if (selectedByPlayers.contains(player)) {
-            showSelectionFor(player);
-        }
-    }
-
-    private void showSelectionFor(Player player) {
-        if (!selectionDisplaySpawned) {
-            displaySelection.spawnDisplay();
-            selectionDisplaySpawned = true;
-        }
-        displaySelection.showForPlayer(player, true);
-    }
-
-    private void createDisplayEntities() {
-        deleteDisplayEntities();
-        Location loc = location.clone().add(0.5, 0.5, 0.5);
-        displayObject = CubeColorDisplay.create(
-                loc,
-                new Vector3f(1.01f, 1.01f, 1.01f),
-                new Quaternionf(),
-                new CubeColorInformation(Color.fromARGB(50, 0, 200, 50)), true);
-        displayLabel = TextDisplay.create(
-                loc, new Vector3f(1,1,1), new Vector3f(), new Quaternionf());
-        displayLabel.setBillboard(Display.Billboard.CENTER);
-        displayLabel.setSeeThrough(true);
-        displayLabel.setText(Component.text(getID()));
-        displayObject.addChild(displayLabel);
-
-        interactionBox = InteractionBox.create(loc.clone(), new Vector3f(1, 1, 1), new Vector3f(), plugin);
-        displayObject.addChild(interactionBox);
-        interactionBox.hideByDefault(true);
-
-        displaySelection = WireframeCubeColorDisplay.create(
-                location.clone().add(0.5, 0.5, 0.5), new Vector3f(1.05f, 1.05f, 1.05f), new Vector3f(), new Quaternionf(),
-                new WireframeCubeColorInformation(Color.YELLOW), true, 0.05f);
-        selectionDisplaySpawned = false;
-
-        displayObject.hideByDefault(true);
-        displaySelection.hideByDefault(true);
-
-        displayLabel.spawnDisplay();
-        displayObject.spawnDisplay();
-        interactionBox.spawnEntity();
-
-        interactionBox.setOnRightClick(this::onRightClickDisplay);
-
-        for (Player p : visibleToPlayers) {
-            displayObject.showForPlayer(p);
-            if (selectedByPlayers.contains(p)) {
-                showSelectionFor(p);
-            }
-        }
-    }
-
-    private void onRightClickDisplay(PlayerInteractAtEntityEvent event) {
-        new PlayerClickEditableObjectEvent(event.getPlayer(), this, PlayerClickEditableObjectEvent.ClickType.RIGHT).callEvent();
-    }
-
-    private void deleteDisplayEntities() {
-        if (displayLabel != null) {
-            displayLabel.remove();
-            displayLabel = null;
-        }
-        if (displayObject != null) {
-            displayObject.remove();
-            displayObject = null;
-        }
-        if (displaySelection != null) {
-            displaySelection.remove();
-            displaySelection = null;
-        }
-        selectionDisplaySpawned = false;
+        if (editorDisplay != null) editorDisplay.showFor(player);
     }
 
     @Override
     public void hideFor(Player player) {
-        visibleToPlayers.remove(player);
-        selectedByPlayers.remove(player);
-        if (displayObject != null) {
-            displayObject.hideForPlayer(player);
-        }
-        if (displayLabel != null) {
-            displayLabel.hideForPlayer(player);
-        }
-        if (displaySelection != null) {
-            displaySelection.hideForPlayer(player, true);
-        }
-        if (visibleToPlayers.isEmpty()) {
-            deleteDisplayEntities();
-        }
+        if (editorDisplay != null) editorDisplay.hideFor(player);
     }
 
     @Override
     public void select(Player player) {
-        selectedByPlayers.add(player);
-        if (displaySelection == null) {
-            createDisplayEntities();
-        }
-        if (visibleToPlayers.contains(player)) {
-            showSelectionFor(player);
-        }
+        if (editorDisplay != null) editorDisplay.select(player);
     }
 
     @Override
     public void deselect(Player player) {
-        selectedByPlayers.remove(player);
-        if (displaySelection != null) {
-            displaySelection.hideForPlayer(player, true);
-        }
+        if (editorDisplay != null) editorDisplay.deselect(player);
     }
 
+    private void onRightClickDisplay(PlayerInteractAtEntityEvent event) {
+        new PlayerClickEditableObjectEvent(event.getPlayer(), this,
+                PlayerClickEditableObjectEvent.ClickType.RIGHT).callEvent();
+    }
 
     @Override
     public UUID getUUID() {
@@ -331,6 +219,7 @@ public class ActivationButton implements IBlockRegestryObject, Listener, IEditab
     @Override
     public void setLocation(Location location) {
         this.location = location;
+        if (editorDisplay != null) editorDisplay.setLocation(location);
         registry.saveObject(this);
     }
 
@@ -363,9 +252,10 @@ public class ActivationButton implements IBlockRegestryObject, Listener, IEditab
     @Override
     public void destroy() {
         if (cooldown != null) cooldown.dispose();
-        deleteDisplayEntities();
-        visibleToPlayers.clear();
-        selectedByPlayers.clear();
+        if (editorDisplay != null) {
+            editorDisplay.remove();
+            editorDisplay = null;
+        }
         IBlockRegestryObject.super.destroy();
     }
 

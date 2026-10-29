@@ -106,10 +106,6 @@ public class WorldMarkerEditor extends AEditor {
             MCCodeCampLib.getEditorManager().deselect(player);
         }
 
-
-
-
-
     }
 
     @EventHandler
@@ -139,7 +135,6 @@ public class WorldMarkerEditor extends AEditor {
             navigate(player, DIALOG_CONFIRM_DELETE, context);
         }
 
-        Bukkit.broadcast(Component.text("key: " +player.getInventory().getItemInMainHand().getPersistentDataContainer().getOrDefault(HotbarItem.ITEM_KEY, PersistentDataType.STRING, "")));
         if (player.getInventory().getItemInMainHand().getPersistentDataContainer().getOrDefault(HotbarItem.ITEM_KEY, PersistentDataType.STRING, "").endsWith("home_delete_item")) {
             Map<String, Object> context = new HashMap<>(MCCodeCampLib.getEditorManager()
                     .getPlayersCurrentDialogContext(player));
@@ -413,7 +408,7 @@ public class WorldMarkerEditor extends AEditor {
             Map.Entry<String, RegistryObjectType> entry = objectTypes.get(objectTypeIndex);
             int hotbarIndex = (objectTypeIndex / 7) * 9 + 1 + objectTypeIndex % 7;
 
-            Button button = Button.create() // create a button with a action that sends the player to the next dialog with the added context of what was selected
+            Button button = Button.create() // create a button with an action that sends the player to the next dialog with the added context of what was selected
                     .addAction(CustomAction.create(p -> {
                         clonedContext.remove("!" + DIALOG_TYPE_SELECTOR + "_hotbarPage");
                         clonedContext.put(DIALOG_TYPE_SELECTOR + "_result", entry.getValue().getTypeID());

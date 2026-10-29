@@ -17,7 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiConsumer;
 
-public class AAnimatedOpenableObject extends AOpenableObject {
+public abstract class AAnimatedOpenableObject extends AOpenableObject {
 
     private int animationDuration;
     private Vector pivotPosition;
@@ -40,6 +40,7 @@ public class AAnimatedOpenableObject extends AOpenableObject {
         disassemble = config.node("disassemble").getBoolean(true);
     }
 
+
     @Override
     public void open(boolean skipTransition) {
         if (getState() != OpenableState.CLOSED && getState() != null) {
@@ -54,7 +55,6 @@ public class AAnimatedOpenableObject extends AOpenableObject {
         if (doorObject == null) {
             List<Vector> absoluteBlocks = getBlocks().stream().map(v -> getLocation().clone().add(v).toVector()).toList();
             doorObject = StructureBuilder.assembleOutOfBlocks(getLocation().getWorld(), getLocation().clone().add(pivotPosition).toVector(), absoluteBlocks, blocksToIgnore, addCollision, true, Material.AIR, true);
-            Bukkit.broadcast(Component.text("Spawning display!"));
         }
         if (openAnimationFunction != null) {
             new BukkitRunnable() {
@@ -64,7 +64,6 @@ public class AAnimatedOpenableObject extends AOpenableObject {
                 }
             }.runTaskLater(getPlugin(), 2);
         } else {
-            Bukkit.broadcast(Component.text("Animation open function is null"));
         }
         scheduleState(OpenableState.OPENED, () -> {}, animationDuration);
     }
@@ -75,7 +74,6 @@ public class AAnimatedOpenableObject extends AOpenableObject {
             @Override
             public void run() {
                 setState(newState);
-                Bukkit.broadcast(Component.text("Running Task"));
                 if (task != null) task.run();
             }
         }.runTaskLater(getPlugin(), delay);
@@ -92,12 +90,10 @@ public class AAnimatedOpenableObject extends AOpenableObject {
         if (closeAnimationFunction != null) {
             closeAnimationFunction.accept(doorObject, animationDuration);
         } else {
-            Bukkit.broadcast(Component.text("Animation close function is null"));
         }
         scheduleState(OpenableState.CLOSED, () -> {
             if (disassemble) {
                 StructureBuilder.disassembleOutOfObject(doorObject);
-                Bukkit.broadcast(Component.text("Disassembling door"));
                 doorObject.remove();
                 doorObject = null;
             }
@@ -119,18 +115,8 @@ public class AAnimatedOpenableObject extends AOpenableObject {
         }
     }
 
-    public Vector getPivotPosition() {
-        return pivotPosition.clone();
-    }
 
-    public void setPivotPosition(Vector pivotPosition) {
-        this.pivotPosition = pivotPosition;
-        try {
-            getConfig().node("pivotpoint").from(writeVector(pivotPosition));
-        } catch (SerializationException e) {
-            getPlugin().getLogger().warning("There was an error while trying to serialize a vector into config!");
-        }
-    }
+
 
     public boolean isAddCollision() {
         return addCollision;

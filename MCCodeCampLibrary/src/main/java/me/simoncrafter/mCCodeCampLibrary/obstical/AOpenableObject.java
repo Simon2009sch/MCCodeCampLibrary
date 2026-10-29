@@ -1,9 +1,16 @@
 package me.simoncrafter.mCCodeCampLibrary.obstical;
 
+import me.simoncrafter.mCCodeCampLibrary.internal.editor.IEditable;
+import me.simoncrafter.mCCodeCampLibrary.internal.editor.display.EditableDisplay;
+import me.simoncrafter.mCCodeCampLibrary.internal.editor.events.PlayerClickEditableObjectEvent;
 import me.simoncrafter.mCCodeCampLibrary.internal.registry.BlockMarkerRegistry;
 import me.simoncrafter.mCCodeCampLibrary.internal.registry.IBlockRegestryObject;
 import me.simoncrafter.mCCodeCampLibrary.internal.registry.RegistryObjectType;
+import net.kyori.adventure.text.Component;
+import org.bukkit.Color;
 import org.bukkit.Location;
+import org.bukkit.entity.Player;
+import org.bukkit.event.player.PlayerInteractAtEntityEvent;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.util.Vector;
 import org.spongepowered.configurate.BasicConfigurationNode;
@@ -17,7 +24,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
 
-public abstract class AOpenableObject implements IOpenable, IBlockRegestryObject {
+public abstract class AOpenableObject implements IOpenable, IBlockRegestryObject, IEditable {
 
     public static class OpenableRegion {
         private final Vector min;
@@ -114,7 +121,7 @@ public abstract class AOpenableObject implements IOpenable, IBlockRegestryObject
     }
 
     private OpenableState state;
-    private Set<OpenableRegion> blockRegions;
+    private Set<OpenableRegion> blockRegions = new HashSet<>();
 
     private Plugin plugin;
     private Location location;
@@ -124,8 +131,15 @@ public abstract class AOpenableObject implements IOpenable, IBlockRegestryObject
     private BlockMarkerRegistry registry;
     private UUID uuid;
 
+    // One origin marker for every openable type; block-region visualization is separate.
+    private EditableDisplay editorDisplay;
+
     @Override
     public void init(Plugin plugin, Location loc, String ID, RegistryObjectType objectType, ConfigurationNode config, UUID uuid, BlockMarkerRegistry registryInstance) {
+        if (editorDisplay != null) {
+            editorDisplay.remove();
+            editorDisplay = null;
+        }
         this.plugin = plugin;
         location = loc;
         this.ID = ID;
@@ -141,6 +155,8 @@ public abstract class AOpenableObject implements IOpenable, IBlockRegestryObject
         }
 
         readConfig();
+        editorDisplay = new EditableDisplay(location.clone().add(0.5, 0.5, 0.5), plugin, Component.text(ID), this::onRightClickDisplay);
+        editorDisplay.setStyle(new EditableDisplay.Style(Color.fromARGB(100, 200, 200, 50), Color.YELLOW, 0.01f));
     }
 
     protected abstract void readConfig();
@@ -178,6 +194,7 @@ public abstract class AOpenableObject implements IOpenable, IBlockRegestryObject
     @Override
     public void setLocation(Location location) {
         this.location = location;
+        if (editorDisplay != null) editorDisplay.setLocation(location);
         registry.saveObject(this);
     }
 
@@ -257,13 +274,15 @@ public abstract class AOpenableObject implements IOpenable, IBlockRegestryObject
     }
 
     /**
-     * Releases this openable object's world attachments. The base implementation
-     * unregisters this object's Bukkit event handlers (the {@code IBlockRegestryObject}
-     * contract); subclasses that hold displays or tasks should override and call
-     * {@code super.destroy()}.
+     * Removes the editor marker and unregisters this object's Bukkit event handlers.
+     * Subclasses with door structures or animation tasks must still call super.destroy().
      */
     @Override
     public void destroy() {
+        if (editorDisplay != null) {
+            editorDisplay.remove();
+            editorDisplay = null;
+        }
         IBlockRegestryObject.super.destroy();
     }
 
@@ -381,4 +400,44 @@ public abstract class AOpenableObject implements IOpenable, IBlockRegestryObject
         return (grid[idx >>> 6] & (1L << idx)) != 0;
     }
 
+    @Override
+    public void close(boolean skipTransition) {
+
+    }
+
+    @Override
+    public void open(boolean skipTransition) {
+
+    }
+
+    @Override
+    public void deselect(Player player) {
+        if (editorDisplay != null) editorDisplay.deselect(player);
+    }
+
+    @Override
+    public void select(Player player) {
+        if (editorDisplay != null) editorDisplay.select(player);
+    }
+
+    @Override
+    public void openEditor(Player player) {
+        IEditable.super.openEditor(player);
+    }
+
+    @Override
+    public void hideFor(Player player) {
+        if (editorDisplay != null) editorDisplay.hideFor(player);
+    }
+
+    @Override
+    public void showFor(Player player) {
+        if (editorDisplay != null) editorDisplay.showFor(player);
+    }
+
+    /** Uses the same editor click event as ActivationButton; the helper forwards the raw click. */
+    private void onRightClickDisplay(PlayerInteractAtEntityEvent event) {
+        new PlayerClickEditableObjectEvent(event.getPlayer(), this,
+                PlayerClickEditableObjectEvent.ClickType.RIGHT).callEvent();
+    }
 }

@@ -1,5 +1,6 @@
 package me.simoncrafter.mCCodeCampLibrary.obstical.Door;
 
+import me.simoncrafter.mCCodeCampLibrary.internal.editor.IEditable;
 import me.simoncrafter.mCCodeCampLibrary.obstical.AOpenableObject;
 import me.simoncrafter.mCCodeCampLibrary.obstical.OpenableState;
 import me.simoncrafter.mCCodeCampLibrary.obstical.events.OpenableObjectStateChangeEvent;
@@ -20,6 +21,8 @@ public class SimpleDoor extends AOpenableObject {
         openBlockData = readBlockData(config, "openBlockdata");
         closedBlockData = readBlockData(config, "closedBlockdata");
     }
+
+
 
     @Override
     public void open(boolean skipTransition) {

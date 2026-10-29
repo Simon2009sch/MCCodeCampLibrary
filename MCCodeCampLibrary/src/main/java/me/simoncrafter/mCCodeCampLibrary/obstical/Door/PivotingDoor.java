@@ -17,6 +17,7 @@ public class PivotingDoor extends AAnimatedOpenableObject {
         ConfigurationNode config = getConfig();
 
         openAngle = config.node("openAngle").getFloat(90);
+        Bukkit.broadcast(Component.text(openAngle));
 
         openAnimationFunction = (obj, duration) -> {
             obj.LRotateAbsolute(rotationFromYaw(this.openAngle), duration);

@@ -19,6 +19,8 @@ import java.util.function.BiConsumer;
 
 public abstract class AAnimatedOpenableObject extends AOpenableObject {
 
+    private static int SPAWN_MOVE_DELAY = 5;
+
     private int animationDuration;
     private Vector pivotPosition;
     private boolean addCollision;
@@ -61,11 +63,12 @@ public abstract class AAnimatedOpenableObject extends AOpenableObject {
                 @Override
                 public void run() {
                     openAnimationFunction.accept(doorObject, animationDuration);
+                    scheduleState(OpenableState.OPENED, () -> {}, animationDuration - SPAWN_MOVE_DELAY);
                 }
-            }.runTaskLater(getPlugin(), 2);
+            }.runTaskLater(getPlugin(), SPAWN_MOVE_DELAY);
         } else {
+            scheduleState(OpenableState.OPENED, () -> {}, animationDuration);
         }
-        scheduleState(OpenableState.OPENED, () -> {}, animationDuration);
     }
 
 

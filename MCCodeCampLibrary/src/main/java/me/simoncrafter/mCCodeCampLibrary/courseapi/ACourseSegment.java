@@ -7,11 +7,11 @@ import org.bukkit.plugin.PluginBase;
 public abstract class ACourseSegment implements Listener {
 
 
-    private Plugin PLUGIN;
+    private final Plugin PLUGIN;
 
 
-    void setPlugin(Plugin plugin) {
-        PLUGIN = plugin;
+    public ACourseSegment(Plugin PLUGIN) {
+        this.PLUGIN = PLUGIN;
     }
 
 

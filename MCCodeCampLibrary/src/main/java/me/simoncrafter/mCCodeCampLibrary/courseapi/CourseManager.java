@@ -28,7 +28,6 @@ public final class CourseManager {
 
     private void _activateCourse(ACourseSegment segment) {
         activeSegments.put(segment.getSegmentID(), segment);
-        segment.setPlugin(PLUGIN);
         Bukkit.getPluginManager().registerEvents(segment, PLUGIN);
         segment.onActivate();
     }

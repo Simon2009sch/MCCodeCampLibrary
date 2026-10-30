@@ -1,6 +1,6 @@
-package me.simoncrafter.mCCodeCampLibrary.courseapi;
+package me.simoncrafter.mCCodeCampLibrary.courseapi.trainingwheels;
 
-public interface IStudentTimingHelper {
+public interface IStudentTimingTrainingWheel {
 
     default void pause(long milliseconds) throws InterruptedException {
         if (org.bukkit.Bukkit.isPrimaryThread()) {

@@ -256,7 +256,7 @@ public class EditableDisplay extends PositionObject {
     }
 
     private PositionObject createDefaultInteraction(Style style, Consumer<PlayerInteractAtEntityEvent> callback) {
-        InteractionBox box = InteractionBox.create(getLocation(), new Vector3f(1), new Vector3f(0, -0.01f, 0), plugin); // small downward offset to make access from bottom posible
+        InteractionBox box = InteractionBox.create(getLocation(), new Vector3f(1.05f), new Vector3f(0, -0.01f, 0), plugin); // small downward offset to make access from bottom posible
         box.hideByDefault(true);
         box.setOnRightClick(callback);
         box.spawnEntity();

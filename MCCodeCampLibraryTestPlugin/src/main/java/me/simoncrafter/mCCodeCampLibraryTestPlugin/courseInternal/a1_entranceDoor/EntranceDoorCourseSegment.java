@@ -1,12 +1,11 @@
-package me.simoncrafter.mCCodeCampLibraryTestPlugin.courseInternal.entranceDoor;
+package me.simoncrafter.mCCodeCampLibraryTestPlugin.courseInternal.a1_entranceDoor;
 
 import me.simoncrafter.mCCodeCampLibrary.courseapi.ACourseSegment;
 import me.simoncrafter.mCCodeCampLibrary.input.activation.event.playerBlockActivation.ButtonIDEvent;
 import me.simoncrafter.mCCodeCampLibrary.internal.registry.events.BlockRegistryUpdateEvent;
 import me.simoncrafter.mCCodeCampLibrary.obstical.Door.SlidingDoor;
 import me.simoncrafter.mCCodeCampLibrary.utility.MCCodeCampLib;
-import me.simoncrafter.mCCodeCampLibraryTestPlugin.MCCodeCampLibraryTestPlugin;
-import me.simoncrafter.mCCodeCampLibraryTestPlugin.yourCode.entranceDoor.Course;
+import me.simoncrafter.mCCodeCampLibraryTestPlugin.yourCode.a1_entranceDoor.Course;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
@@ -18,7 +17,8 @@ public class EntranceDoorCourseSegment extends ACourseSegment {
     private final EntranceDoor student;
     private SlidingDoor door;
 
-    public EntranceDoorCourseSegment() {
+    public EntranceDoorCourseSegment(Plugin plugin) {
+        super(plugin);
         student = new Course();
         student.setSegment(this);
         findObjects();
@@ -75,7 +75,6 @@ public class EntranceDoorCourseSegment extends ACourseSegment {
         new BukkitRunnable() {
             @Override
             public void run() {
-                Bukkit.broadcast(Component.text("Open"));
                 door.open();
             }
         }.runTask(getPlugin());
@@ -84,7 +83,6 @@ public class EntranceDoorCourseSegment extends ACourseSegment {
         new BukkitRunnable() {
             @Override
             public void run() {
-                Bukkit.broadcast(Component.text("Close"));
                 door.close();
             }
         }.runTask(getPlugin());

@@ -1,6 +1,6 @@
-package me.simoncrafter.mCCodeCampLibraryTestPlugin.yourCode.entranceDoor;
+package me.simoncrafter.mCCodeCampLibraryTestPlugin.yourCode.a1_entranceDoor;
 
-import me.simoncrafter.mCCodeCampLibraryTestPlugin.courseInternal.entranceDoor.*;
+import me.simoncrafter.mCCodeCampLibraryTestPlugin.courseInternal.a1_entranceDoor.*;
 
 public class Course extends EntranceDoor {
 

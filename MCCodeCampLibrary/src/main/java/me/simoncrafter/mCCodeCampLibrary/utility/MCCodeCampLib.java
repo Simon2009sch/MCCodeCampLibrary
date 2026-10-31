@@ -31,7 +31,6 @@ public class MCCodeCampLib {
 
     private static Plugin plugin;
     private static BlockMarkerRegistry blockMarkerRegistry;
-    private static ItemsManager itemsManager;
     private static EditorManager editorManager;
     private static long currentDisplayPluginIteration = 0;
     private static BukkitRunnable globalTickLoop;
@@ -52,9 +51,6 @@ public class MCCodeCampLib {
         return currentDisplayPluginIteration;
     }
 
-    public static ItemsManager getItemsManager() {
-        return itemsManager;
-    }
 
     public static Logger getPluginLogger() {
         return plugin.getLogger();
@@ -85,7 +81,6 @@ public class MCCodeCampLib {
         MCCodeCampLib.currentDisplayPluginIteration = System.currentTimeMillis();
 
 
-        MCCodeCampLib.itemsManager = new ItemsManager(plugin);
         MCCodeCampLib.editorManager = new EditorManager(plugin);
         if (!editorManager.registerEditor("mccodecamp:world-marker", new WorldMarkerEditor(plugin))) {
             throw new IllegalStateException("Could not register the world-marker editor");

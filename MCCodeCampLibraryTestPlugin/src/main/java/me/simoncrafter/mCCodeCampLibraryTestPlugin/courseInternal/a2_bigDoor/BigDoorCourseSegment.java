@@ -66,7 +66,10 @@ public class BigDoorCourseSegment extends ACourseSegment {
         doorWheel.open(doorName);
     }
     void sClose(String doorName) {
-        doorWheel.open(doorName);
+        doorWheel.close(doorName);
+    }
+    boolean sIsDoorOpen(String doorName) {
+        return doorWheel.isDoorOpen(doorName);
     }
 
 }

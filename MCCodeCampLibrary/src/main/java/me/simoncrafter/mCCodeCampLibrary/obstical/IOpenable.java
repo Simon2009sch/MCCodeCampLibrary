@@ -9,4 +9,6 @@ public interface IOpenable {
     default void close() {
         close(false);
     }
+
+    boolean isOpen();
 }

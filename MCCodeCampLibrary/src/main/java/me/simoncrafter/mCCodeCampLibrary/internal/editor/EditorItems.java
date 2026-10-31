@@ -1,6 +1,5 @@
 package me.simoncrafter.mCCodeCampLibrary.internal.editor;
 
-import me.simoncrafter.mCCodeCampLibrary.utility.ItemsManager;
 import me.simoncrafter.mCCodeCampLibrary.utility.MCCodeCampLib;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;

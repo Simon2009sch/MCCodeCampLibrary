@@ -20,6 +20,10 @@ public abstract class BigDoor implements IStudentTimingTrainingWheel {
         segment.sClose(doorName);
     }
 
+    protected final boolean isDoorOpen(String doorName) {
+        return segment.sIsDoorOpen(doorName);
+    }
+
     protected abstract void onButtonPress() throws InterruptedException;
 
 

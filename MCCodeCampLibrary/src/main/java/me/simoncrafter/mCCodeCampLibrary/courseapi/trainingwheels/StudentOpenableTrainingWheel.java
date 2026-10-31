@@ -32,7 +32,11 @@ public class StudentOpenableTrainingWheel {
     }
 
     public void close(String openableName) {
-        setDoorState(openableName, IOpenable::open);
+        setDoorState(openableName, IOpenable::close);
+    }
+
+    public boolean isDoorOpen(String openableName) {
+        return getDoor(openableName).isOpen();
     }
 
     private void setDoorState(String openableName, Consumer<IOpenable> action) {

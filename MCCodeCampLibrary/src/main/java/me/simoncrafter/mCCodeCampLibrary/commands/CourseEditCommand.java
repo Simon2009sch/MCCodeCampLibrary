@@ -9,7 +9,7 @@ import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.questions.ConfigEditQ
 import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.questions.ConfigEditQuestion.ConfigEditQuestion;
 import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.questions.ConfigEditQuestion.ConfigEditValues.ConfigEditListSection;
 import me.simoncrafter.CraftersChatDialogs.dialogs.prefabs.questions.GenericQuestion;
-import me.simoncrafter.mCCodeCampLibrary.internal.editor.EditorItems;
+
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.hotbarmenu.HotbarItem;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.hotbarmenu.HotbarMenu;
 import me.simoncrafter.mCCodeCampLibrary.internal.registry.BlockMarkerRegistry;
@@ -60,12 +60,7 @@ public class CourseEditCommand implements TabExecutor, org.bukkit.command.Comman
         }
         Player player = (Player) sender;
 
-        if (args.length == 1 && args[0].equalsIgnoreCase("getItems") && player.hasPermission("mccodecamp.command.edit.getitems")) {
-            player.give(EditorItems.getToggleVisibility());
-            player.give(EditorItems.getCreateNew());
-            player.give(EditorItems.getRemove());
-            return true;
-        } else if (args.length == 1 && args[0].equalsIgnoreCase("reload")) {
+        if (args.length == 1 && args[0].equalsIgnoreCase("reload")) {
             return true;
         } else if (args.length == 1 && args[0].equalsIgnoreCase("hotbar")) {
             Plugin plugin = MCCodeCampLib.unsafePluginGetDoNotUseThisOutsideOfTesting();

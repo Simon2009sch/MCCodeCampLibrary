@@ -6,6 +6,7 @@ import me.simoncrafter.CraftersDisplayLibrary.persistence.DisplayPersistence;
 import me.simoncrafter.mCCodeCampLibrary.courseapi.CourseManager;
 import me.simoncrafter.mCCodeCampLibrary.input.activation.ActivationButton;
 import me.simoncrafter.mCCodeCampLibrary.input.editor.WorldMarkerEditor;
+import me.simoncrafter.mCCodeCampLibrary.input.item.ItemsManager;
 import me.simoncrafter.mCCodeCampLibrary.internal.activation.StyledRegistryObjectType;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.EditorManager;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.hotbarmenu.HotbarMenu;
@@ -35,6 +36,7 @@ public class MCCodeCampLib {
     private static long currentDisplayPluginIteration = 0;
     private static BukkitRunnable globalTickLoop;
     private static CourseManager courseManager;
+    private static ItemsManager itemsManager;
 
     private static AOpenableObject door;
 
@@ -79,6 +81,7 @@ public class MCCodeCampLib {
             }
         }
         MCCodeCampLib.currentDisplayPluginIteration = System.currentTimeMillis();
+        itemsManager = new ItemsManager(plugin);
 
 
         MCCodeCampLib.editorManager = new EditorManager(plugin);
@@ -176,6 +179,7 @@ public class MCCodeCampLib {
         return out;
     }
 
-
-
+    public static ItemsManager getItemsManager() {
+        return itemsManager;
+    }
 }

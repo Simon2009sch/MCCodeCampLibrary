@@ -25,7 +25,7 @@ public class EntranceDoorCourseSegment extends ACourseSegment {
     }
 
     private void findObjects() {
-        if (MCCodeCampLib.getBlockMarkerRegistry().findRegisteredObject("sliding_door", "entrance_door") instanceof SlidingDoor sDoor) {
+        if (MCCodeCampLib.getBlockMarkerRegistry().findRegisteredObject("sliding_door", "hut_door") instanceof SlidingDoor sDoor) {
             door = sDoor;
         }
     }
@@ -57,7 +57,7 @@ public class EntranceDoorCourseSegment extends ACourseSegment {
 
     @EventHandler
     public void onButtonID(ButtonIDEvent event) {
-        if (event.getID().startsWith("entrance_door_button")) {
+        if (event.getID().startsWith("hut_door_button")) {
             new BukkitRunnable() {
                 @Override
                 public void run() {

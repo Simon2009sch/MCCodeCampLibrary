@@ -2,9 +2,9 @@ package me.simoncrafter.mCCodeCampLibraryTestPlugin.yourCode.a3_wand;
 
 import io.papermc.paper.datacomponent.DataComponentTypes;
 import me.simoncrafter.mCCodeCampLibrary.input.item.ACustomItemHandler;
-import me.simoncrafter.mCCodeCampLibrary.utility.Cooldown;
-import me.simoncrafter.mCCodeCampLibrary.utility.MCCodeCampLib;
-import me.simoncrafter.mCCodeCampLibraryTestPlugin.MCCodeCampLibraryTestPlugin;
+import me.simoncrafter.mCCodeCampLibrary.utility.ItemCooldown;
+import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.NamespacedKey;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
 import org.bukkit.event.block.Action;
@@ -40,10 +40,8 @@ public class Course extends ACustomItemHandler {
         return node;
     }
 
-    private int getLastUse(ItemStack itemStack) {
-        ConfigurationNode node = getItemData(itemStack);
-        return node.node("lastUse").getInt();
-    }
+    private final ItemCooldown itemCooldown = new ItemCooldown(
+            new NamespacedKey(JavaPlugin.getProvidingPlugin(Course.class), "wand_cooldown"));
 
 
 
@@ -51,6 +49,10 @@ public class Course extends ACustomItemHandler {
     @Override
     public void onInteract(PlayerInteractEvent event) {
         if (event.getAction() == Action.RIGHT_CLICK_BLOCK && event.getClickedBlock() != null && event.getHand() == EquipmentSlot.HAND) {
+            if (event.getItem() == null || !itemCooldown.tryUse(event.getItem(),
+                    getItemData(event.getItem()).node("cooldown").getLong())) {
+                return;
+            }
 
             if (event.getPlayer().isSneaking()) {
                 event.getClickedBlock().getWorld().createExplosion(event.getClickedBlock().getLocation(), 10);

@@ -1,0 +1,27 @@
+# Terrain backups
+
+Run `python MCCodeCampLibrary/tests/run_terrain_backups.py` from the repository root. It compiles the actual production service against `target/editor-classpath.txt` (Paper + WorldEdit 7.2.14), then executes persistence/lifecycle tests using a deliberately fake world-I/O backend. This is not a live FAWE roundtrip.
+
+## Integration contract
+
+- `new TerrainBackups(plugin, directory)` on the main thread, after the owner and FastAsyncWorldEdit are enabled. One owner per directory; do not instantiate concurrent services for the same path.
+- `capture(world, new TerrainBackups.Bounds(minX,minY,minZ,maxX,maxY,maxZ))` on the main thread. Bounds are inclusive, must lie within the world's build height and contain at most 20,000,000 voxels. Full-height +/-90 X/Z is supported where below that limit. Metadata is recorded from Bukkit on the main thread; all copying, compression and file I/O for capture/restore run on the serial owned worker.
+- Perform destructive effects **only after successful capture completion**, marshalling callbacks to the main thread and checking the owner is still active. A completed `Backup` exposes `sequence()`, `worldId()`, `worldName()`, `bounds()`, `schematicPath()`.
+- Suspend destructive effects before `restoreAll()`. The worker restores across worlds newest-first. UUID is authoritative; a renamed world with the same UUID is valid, a different world with the same name is not. Missing world, invalid height, reader, paste, flush or filesystem failures stop the chain; failed/older backups remain.
+- Air is pasted, full block states/block-entity NBT are copied by WorldEdit's `ForwardExtentCopy`/Sponge schematic APIs. Entities and biomes are deliberately excluded. These snapshots do not undo external plugin data, entity explosions, inventory transactions, scheduled physics, or edits outside the bounds. Enforce effect containment/margins in the caller.
+- `backupCount()` counts committed snapshots; `isBusy()` includes queued work. Serial execution prevents snapshot/paste overlap, but callers must coordinate destruction performed outside this service.
+- Close the service on disable, before unloading the owner. It interrupts the worker and drops queued work without waiting on the server thread (waiting would deadlock main-thread world resolution). Pending futures intentionally remain incomplete, preventing completion callbacks after close. Checkpoints prevent post-close commit/deletion; a FAWE operation already underway may finish/partially apply before interruption is observed. Its backup is retained for retry. Do not use futures as a disable barrier.
+
+## Durability/recovery
+
+`sequence` is an atomically replaced, fsync'd monotonically increasing counter, retained even after restore drains the journal. `N.part` reserves each capture; successful copy is fsync'd and atomically renamed to `N.schem`. `N.meta.part` is fsync'd then atomically renamed to `N.meta`: that metadata file is the commit record and includes original inclusive coordinates and world UUID/name. There is no non-atomic rename fallback. Failures leave incomplete files for inspection, never advertise capture success.
+
+Startup scans committed metadata and reconstructs numeric LIFO order. Malformed metadata or a missing committed schematic fails construction closed rather than silently skipping history. Partial/orphan files are preserved but ignored (destructive effects must not have started for an uncommitted capture). After successful complete paste **and EditSession close**, metadata is removed first, then schematic. A crash before metadata removal can repeat the same paste; a crash afterward leaves only a harmless orphan schematic. Filesystem directory-entry durability under sudden power loss remains platform/filesystem-dependent; Java's portable API does not guarantee directory fsync on Windows.
+
+## Verified API/threading sources
+
+FAWE's actual [API Usage](https://intellectualsites.gitbook.io/fastasyncworldedit/api/api-usage.md) explicitly recommends asynchronous operations and states `Operations.complete` and `EditSession.close` block; changes are flushed before close returns. Both calls run on this worker, never the Bukkit main thread.
+
+FAWE [BlockArrayClipboard source](https://github.com/IntellectualSites/FastAsyncWorldEdit/blob/main/worldedit-core/src/main/java/com/sk89q/worldedit/extent/clipboard/BlockArrayClipboard.java) says storage may be disk-backed and requires flushing before use. FAWE [Clipboard](https://github.com/IntellectualSites/FastAsyncWorldEdit/blob/main/worldedit-core/src/main/java/com/sk89q/worldedit/extent/clipboard/Clipboard.java) implements `Flushable`/`Closeable`; the service validates those interfaces, flushes before write/paste, and closes owned clipboards. This also fails closed if runtime classes incorrectly resolve to vanilla WorldEdit even though the FAWE plugin is enabled. The deprecated `SPONGE_SCHEMATIC` alias remains in current FAWE and targets Sponge v2, preserving compilation against the cached WorldEdit API.
+
+Remaining live verification: installed FAWE/Paper version linkage/classloader visibility, negative Y/full-height regions, overlapping snapshots, container/sign NBT and block states, restored air, unloaded chunks/worlds, memory/disk budget for ~12 million voxels, timings/lag, and interruption during an actual large copy/paste. Set an adequate heap/FAWE clipboard storage configuration and prevent unrelated edits during capture. No live FAWE world roundtrip is claimed by this harness.

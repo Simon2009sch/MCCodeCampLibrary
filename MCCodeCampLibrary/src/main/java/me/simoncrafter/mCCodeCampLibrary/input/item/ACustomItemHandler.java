@@ -53,8 +53,10 @@ public abstract class ACustomItemHandler {
         return itemData.node("itemData");
     }
 
-    private final void setItemData(ItemStack itemStack, ConfigurationNode itemData) {
-        CommentedConfigurationNode finalData = CommentedConfigurationNode.root();
+    /** Replaces only the payload, preserving ID, version and future root metadata. */
+    protected final void setItemData(ItemStack itemStack, ConfigurationNode itemData) {
+        ConfigurationNode finalData = ItemsManager.readItemConfig(itemStack);
+        if (finalData == null) throw new IllegalArgumentException("Item has no valid custom-item metadata");
         try {
             finalData.node("itemData").set(itemData);
         } catch (SerializationException e) {
@@ -75,5 +77,16 @@ public abstract class ACustomItemHandler {
         return itemStack;
     };
 
-    public abstract void onInteract(PlayerInteractEvent event);
+    /** Air-click hook; also receives block clicks through the default block hook. */
+    public void onInteract(PlayerInteractEvent event) { }
+
+    /** Override to specialize block clicks; the default preserves legacy handlers exactly once. */
+    public void onBlockInteract(PlayerInteractEvent event) { onInteract(event); }
+
+    /** Right-click entity hook. May receive a PlayerInteractAtEntityEvent for precise hits. */
+    public void onEntityInteract(org.bukkit.event.player.PlayerInteractEntityEvent event) { }
+
+    /** Left-click entities before damage, including invulnerable/unattackable targets.
+     * Paper does not permit uncancelling when willAttack() is false. */
+    public void onEntityAttack(io.papermc.paper.event.player.PrePlayerAttackEntityEvent event) { }
 }

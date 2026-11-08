@@ -14,6 +14,8 @@ _Last reconnaissance: 2026-08-21._
 6. Bukkit/Paper world and entity operations must remain on the server thread unless the API explicitly permits otherwise.
 7. When changing persistence or event registration, consider chunk unload/reload, duplicate listeners, malformed saved data, object removal, and plugin disable behavior.
 8. Do not edit `.agentbridge/` databases or machine-specific IDE memory directly.
+9. Every newly registered Bukkit listener must have an explicit owner and cleanup path: unregister it when its object is destroyed, replaced, unloaded or otherwise no longer needed, and on plugin disable. Cancel owned tasks and remove owned displays too; cleanup must be idempotent.
+10. Branch `tdot` (Tag der offenen Tür) is for AI-assisted feature development. Keep this work off `master` unless the user explicitly requests a merge.
 
 ## Project identity and purpose
 
@@ -150,6 +152,7 @@ There is a per-developer remote deployment path for the test plugin:
 - The Unix `deploy-local.sh` compatibility profile remains but does not migrate legacy scripts to Calagopus; avoid enabling both deployment launchers.
 - Deployment tests: `python -m unittest discover -s MCCodeCampLibraryTestPlugin/tests -v`. These use dummy protocol responses, not a live server. Do not claim a real upload passed until remote SHA-256 verification has actually succeeded.
 - See `MCCodeCampLibraryTestPlugin/DEPLOYMENT.md` for configuration, migration and API details.
+- The project-local `tools/build-and-reload.py --ide-env` reuses the private Maven environment, builds/uploads through Maven, verifies the remote hash, and conditionally performs/verifies `plugman reload MCCodeCampLibraryTestPlugin`. It never restarts the server or automatically retries an ambiguous console submission. `--dry-run` makes no build/network writes; documentation and offline tests live in `tools/`.
 
 ## Known gaps and cautions
 

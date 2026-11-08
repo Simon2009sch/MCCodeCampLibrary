@@ -21,6 +21,10 @@ From the repository root: `mvn -Pdev clean package`. Shading finishes before the
 
 The existing Maven local-copy profile still copies at `package` when `PLUGINSFOLDER` is set, independently of Python. For a completely side-effect-free Maven dry-run, unset `PLUGINSFOLDER` as well as setting `CALAGOPUS_DEPLOY_DRY_RUN=true`.
 
+## One-command build, upload and conditional reload
+
+From the repository root, `python tools/build-and-reload.py --ide-env` reuses the private IntelliJ Maven run environment and the existing Maven upload routine. It verifies the remote SHA-256, skips reload when the server is not running/restarted, and verifies a fresh PlugMan success message. No credentials are stored in the helper. Use `--dry-run` for local validation without build/network writes, or `--no-reload` for build/upload only. See `tools/README.md` for details.
+
 ## Protocol and verification
 
 Verified against the current panel's public `/openapi.json` and Calagopus upstream routes:

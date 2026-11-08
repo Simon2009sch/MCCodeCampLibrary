@@ -5,8 +5,10 @@ import me.simoncrafter.CraftersDisplayLibrary.PluginHolder;
 import me.simoncrafter.CraftersDisplayLibrary.persistence.DisplayPersistence;
 import me.simoncrafter.mCCodeCampLibrary.courseapi.CourseManager;
 import me.simoncrafter.mCCodeCampLibrary.input.activation.ActivationButton;
+import me.simoncrafter.mCCodeCampLibrary.input.activation.ProjectileTarget;
 import me.simoncrafter.mCCodeCampLibrary.input.editor.WorldMarkerEditor;
 import me.simoncrafter.mCCodeCampLibrary.input.item.ItemsManager;
+import me.simoncrafter.mCCodeCampLibrary.projectile.ProjectileManager;
 import me.simoncrafter.mCCodeCampLibrary.internal.activation.StyledRegistryObjectType;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.EditorManager;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.hotbarmenu.HotbarMenu;
@@ -31,12 +33,19 @@ import java.util.logging.Logger;
 public class MCCodeCampLib {
 
     private static Plugin plugin;
+    private static boolean shutDown;
     private static BlockMarkerRegistry blockMarkerRegistry;
     private static EditorManager editorManager;
     private static long currentDisplayPluginIteration = 0;
     private static BukkitRunnable globalTickLoop;
     private static CourseManager courseManager;
     private static ItemsManager itemsManager;
+    private static ProjectileManager projectileManager;
+
+    public static ProjectileManager getProjectileManager() {
+        if (projectileManager == null) throw new IllegalStateException("MCCodeCampLib is not initialized");
+        return projectileManager;
+    }
 
     private static AOpenableObject door;
 
@@ -66,11 +75,15 @@ public class MCCodeCampLib {
         return courseManager;
     }
 
+    /** Initialize once per plugin classloader; shutdown requires a fresh classloader before reuse. */
     public static void init(@NotNull Plugin plugin) {
+        if (shutDown) throw new IllegalStateException("MCCodeCampLib shutdown requires a fresh plugin classloader before initialization");
         if (MCCodeCampLib.plugin != null) {
             return;
         }
         MCCodeCampLib.plugin = plugin;
+        ItemCooldown.resetSession();
+        projectileManager = new ProjectileManager(plugin);
         MCCodeCampLib.blockMarkerRegistry = new BlockMarkerRegistry(plugin);
 
         registerWorldMarkerTypes();
@@ -104,6 +117,8 @@ public class MCCodeCampLib {
             @Override
             public void run() {
                 Cooldown.tickAll();
+                ItemCooldown.tick();
+                projectileManager.tick();
                 courseManager.onTick();
             }
         };
@@ -114,6 +129,11 @@ public class MCCodeCampLib {
     }
 
     private static void registerWorldMarkerTypes() {
+        blockMarkerRegistry.registerObjectType("projectile_target", new StyledRegistryObjectType(ProjectileTarget::new, "projectile_target", Map.of(
+                "displayname", "Projectile Target",
+                "description", "A block activated by custom projectiles (optionally vanilla projectiles)",
+                "displayItem", Material.TARGET.toString()
+        )));
         StyledRegistryObjectType buttonType = new StyledRegistryObjectType(ActivationButton::new, "button", Map.ofEntries(
                 Map.entry("displayname", "Button"),
                 Map.entry("description", "Creates a new button usable in code"),
@@ -142,11 +162,25 @@ public class MCCodeCampLib {
     }
 
     public static void onDisable() {
+        shutDown = true;
         if (globalTickLoop != null) {
             globalTickLoop.cancel();
             globalTickLoop = null;
         }
+        if (projectileManager != null) {
+            projectileManager.close();
+            projectileManager = null;
+        }
+        if (blockMarkerRegistry != null) {
+            // Loaded targets/buttons own listeners, cooldowns and editor displays.
+            for (var object : blockMarkerRegistry.getRegisteredObjects()) object.destroy();
+        }
+        if (itemsManager != null) {
+            itemsManager.close();
+            itemsManager = null;
+        }
         Cooldown.disposeAll();
+        ItemCooldown.resetSession();
         HotbarMenu.onDisablePlugin();
     }
 
@@ -164,6 +198,7 @@ public class MCCodeCampLib {
         Bukkit.getPluginManager().registerEvents(new ActivationListeners(), plugin);
         Bukkit.getPluginManager().registerEvents(new RegionActivationHandler(), plugin);
         Bukkit.getPluginManager().registerEvents(blockMarkerRegistry, plugin);
+        Bukkit.getPluginManager().registerEvents(projectileManager, plugin);
         Bukkit.getPluginManager().registerEvents(new me.simoncrafter.CraftersChatDialogs.Listeners(), plugin);
     }
 

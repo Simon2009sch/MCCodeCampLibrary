@@ -4,9 +4,13 @@ version: '${version}'
 main: me.simoncrafter.mCCodeCampLibraryTestPlugin.MCCodeCampLibraryTestPlugin
 api-version: '1.21.11'
 load: POSTWORLD
+softdepend: [FastAsyncWorldEdit]
 
 commands:
   coursedit: {}
+  projectileeffects:
+    description: Console-only projectile effect diagnostics and fixed live tests.
+    usage: /projectileeffects status|live-meteor|live-ray|restore|disarm
 
 permissions:
   mccodecamp.command.edit.worldmarker:

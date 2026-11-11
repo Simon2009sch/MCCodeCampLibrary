@@ -117,7 +117,13 @@ public class BlockMarkerRegistry implements Listener {
             return;
         }
 
-        obj.init(PLUGIN, location, id, objectType, node.node("config"), uuid, this);
+        try {
+            obj.init(PLUGIN, location, id, objectType, node.node("config"), uuid, this);
+        } catch(RuntimeException e) {
+            obj.destroy();
+            PLUGIN_LOGGER.warning("Failed to load marker "+id+" ("+uuid+"): "+e.getMessage());
+            return;
+        }
         putObject(type, id, obj);
         new BlockRegistryUpdateEvent(LOAD, obj).callEvent();
     }

@@ -1,7 +1,8 @@
 package me.simoncrafter.mCCodeCampLibraryTestPlugin.courseInternal.a1_entranceDoor;
 
 import me.simoncrafter.mCCodeCampLibrary.courseapi.ACourseSegment;
-import me.simoncrafter.mCCodeCampLibrary.input.activation.event.playerBlockActivation.ButtonIDEvent;
+import me.simoncrafter.mCCodeCampLibrary.input.activation.event.entityActivation.RegionTriggerEnterIDEvent;
+import org.bukkit.entity.Player;
 import me.simoncrafter.mCCodeCampLibrary.internal.registry.events.BlockRegistryUpdateEvent;
 import me.simoncrafter.mCCodeCampLibrary.obstical.Door.SlidingDoor;
 import me.simoncrafter.mCCodeCampLibrary.utility.MCCodeCampLib;
@@ -14,6 +15,8 @@ import org.bukkit.scheduler.BukkitRunnable;
 
 public class EntranceDoorCourseSegment extends ACourseSegment {
 
+    /** WorldGuard region trigger_hut_door emits this prefix-free ID. */
+    public static final String TRIGGER_ID = "hut_door";
     private final EntranceDoor student;
     private SlidingDoor door;
 
@@ -56,13 +59,13 @@ public class EntranceDoorCourseSegment extends ACourseSegment {
     }
 
     @EventHandler
-    public void onButtonID(ButtonIDEvent event) {
-        if (event.getID().startsWith("hut_door_button")) {
+    public void onAreaEnter(RegionTriggerEnterIDEvent event) {
+        if (event.getEntity() instanceof Player && TRIGGER_ID.equals(event.getID())) {
             new BukkitRunnable() {
                 @Override
                 public void run() {
                     try {
-                        student.onButtonPress();
+                        student.onEnterArea();
                     } catch (InterruptedException ignored) {
 
                     }

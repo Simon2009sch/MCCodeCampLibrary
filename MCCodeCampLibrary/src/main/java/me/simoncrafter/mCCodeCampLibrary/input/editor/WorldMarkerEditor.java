@@ -100,11 +100,13 @@ public class WorldMarkerEditor extends AEditor {
     @Override
     protected void onPlayerClickObjectEvent(PlayerClickEditableObjectEvent event) {
         Player player = event.getPlayer();
-        if (MCCodeCampLib.getEditorManager().getPlayerSelection(player) != event.getClicked()) {
-            MCCodeCampLib.getEditorManager().select(player, event.getClicked());
-        } else {
-            MCCodeCampLib.getEditorManager().deselect(player);
+        var manager = MCCodeCampLib.getEditorManager();
+        // Parent editors remain registered while a child is open; only the current editor handles clicks.
+        if (manager.getPlayersCurrentEditor(player) != this) return;
+        if (manager.getPlayerSelection(player) != event.getClicked()) {
+            manager.select(player, event.getClicked());
         }
+        event.getClicked().openEditor(player);
 
     }
 

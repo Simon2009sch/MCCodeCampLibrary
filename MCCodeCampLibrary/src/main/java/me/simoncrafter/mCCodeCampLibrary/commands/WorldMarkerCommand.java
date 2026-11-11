@@ -32,7 +32,7 @@ import java.util.UUID;
 final class WorldMarkerCommand {
     static final String PERMISSION = "mccodecamp.command.edit.worldmarker";
     private static final Gson JSON = new GsonBuilder().setStrictness(Strictness.STRICT).disableHtmlEscaping().create();
-    private static final List<String> ACTIONS = List.of("create", "remove", "get", "set", "list", "types", "help");
+    private static final List<String> ACTIONS = List.of("create", "remove", "get", "set", "list", "types", "save", "edit", "status", "help");
     private static final int MAX_JSON_LENGTH = 32768;
 
     private WorldMarkerCommand() { }
@@ -68,9 +68,30 @@ final class WorldMarkerCommand {
                     if (args.length < 4) throw new IllegalArgumentException("Usage: set <uuid> <config-json>");
                     IBlockRegestryObject marker = find(registry, args[2]);
                     ConfigurationNode config = configuration(parseObject(jsonTail(args, 3)));
+                    if(marker instanceof me.simoncrafter.mCCodeCampLibrary.animation.AnimatedBlockObject object) {
+                        if(config.hasChild("editMode") && config.node("editMode").getBoolean()!=object.isEditMode())
+                            throw new IllegalArgumentException("Use worldmarker edit to change edit mode transactionally.");
+                        config.node("editMode").set(object.isEditMode());
+                    }
                     IBlockRegestryObject updated = registry.replaceObjectConfig(marker.getUUID(), config);
                     if (updated == null) throw new IllegalArgumentException("Config reload failed; check the server log.");
                     success(sender, "Replaced config and reloaded marker " + updated.getUUID() + "; selections/object editors were reset.");
+                }
+                case "save" -> {
+                    requireLength(args, 3, "save <uuid>");
+                    animated(find(registry,args[2])).saveSchematic();
+                    success(sender,"Source schematic committed.");
+                }
+                case "edit" -> {
+                    requireLength(args, 4, "edit <uuid> <true|false>");
+                    if(!args[3].equalsIgnoreCase("true") && !args[3].equalsIgnoreCase("false"))
+                        throw new IllegalArgumentException("Edit mode must be true or false.");
+                    var object=animated(find(registry,args[2]));object.setEditMode(Boolean.parseBoolean(args[3]));
+                    success(sender,"Edit mode: "+object.isEditMode());
+                }
+                case "status" -> {
+                    requireLength(args, 3, "status <uuid>");
+                    sendJson(sender,JSON.toJsonTree(animated(find(registry,args[2])).status()));
                 }
                 case "list" -> {
                     requireLength(args, 2, "list");
@@ -93,10 +114,15 @@ final class WorldMarkerCommand {
                 }
                 default -> throw new IllegalArgumentException("Unknown worldmarker action. Use /" + label + " worldmarker help.");
             }
-        } catch (IllegalArgumentException e) {
+        } catch (java.io.IOException | java.io.UncheckedIOException | IllegalStateException | IllegalArgumentException e) {
             error(sender, e.getMessage());
         }
         return true;
+    }
+
+    private static me.simoncrafter.mCCodeCampLibrary.animation.AnimatedBlockObject animated(IBlockRegestryObject marker) {
+        if(marker instanceof me.simoncrafter.mCCodeCampLibrary.animation.AnimatedBlockObject object)return object;
+        throw new IllegalArgumentException("This action requires animated_blocks or proximity_blocks.");
     }
 
     private static void create(CommandSender sender, BlockMarkerRegistry registry, JsonObject request) {
@@ -217,7 +243,7 @@ final class WorldMarkerCommand {
     }
 
     private static void help(CommandSender sender, String label) {
-        sender.sendMessage(Component.text("/" + label + " worldmarker create <json> | remove <uuid> | get <uuid> | set <uuid> <config-json> | list | types", NamedTextColor.GOLD));
+        sender.sendMessage(Component.text("/" + label + " worldmarker create <json> | remove <uuid> | get <uuid> | set <uuid> <config-json> | list | types | save <uuid> | edit <uuid> <true|false> | status <uuid>", NamedTextColor.GOLD));
         sender.sendMessage(Component.text("create JSON: {\"type\":\"button\",\"id\":\"test_button\",\"location\":{\"world\":\"world\",\"x\":0,\"y\":64,\"z\":0},\"config\":{\"cooldown\":20,\"blockdata\":\"minecraft:stone_button\"}}"));
         sender.sendMessage(Component.text("get prints only config JSON; set replaces config (not a merge) and reloads the marker with the same UUID. list/get/set/remove cover loaded markers only.", NamedTextColor.GRAY));
     }
@@ -225,7 +251,7 @@ final class WorldMarkerCommand {
     static List<String> complete(CommandSender sender, String[] args) {
         if (!sender.hasPermission(PERMISSION)) return List.of();
         if (args.length == 2) return prefix(ACTIONS, args[1]);
-        if (args.length == 3 && List.of("remove", "get", "set").contains(args[1].toLowerCase(Locale.ROOT))) {
+        if (args.length == 3 && List.of("remove", "get", "set", "save", "edit", "status").contains(args[1].toLowerCase(Locale.ROOT))) {
             return prefix(MCCodeCampLib.getBlockMarkerRegistry().getRegisteredObjects().stream()
                     .map(marker -> marker.getUUID().toString()).sorted().toList(), args[2]);
         }

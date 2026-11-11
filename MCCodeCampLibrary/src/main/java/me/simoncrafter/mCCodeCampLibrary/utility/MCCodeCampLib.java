@@ -18,6 +18,9 @@ import me.simoncrafter.mCCodeCampLibrary.internal.activation.ActivationListeners
 import me.simoncrafter.mCCodeCampLibrary.internal.activation.RegionActivationHandler;
 import me.simoncrafter.mCCodeCampLibrary.obstical.AOpenableObject;
 import me.simoncrafter.mCCodeCampLibrary.obstical.Door.SlidingDoor;
+import me.simoncrafter.mCCodeCampLibrary.obstical.Door.PivotingDoor;
+import me.simoncrafter.mCCodeCampLibrary.animation.AnimatedBlockObject;
+import me.simoncrafter.mCCodeCampLibrary.animation.AnimatedObjectManager;
 import org.bukkit.*;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -41,6 +44,12 @@ public class MCCodeCampLib {
     private static CourseManager courseManager;
     private static ItemsManager itemsManager;
     private static ProjectileManager projectileManager;
+    private static AnimatedObjectManager animatedObjectManager;
+
+    public static AnimatedObjectManager getAnimatedObjectManager() {
+        if (animatedObjectManager == null) throw new IllegalStateException("Animation manager is not initialized");
+        return animatedObjectManager;
+    }
 
     public static ProjectileManager getProjectileManager() {
         if (projectileManager == null) throw new IllegalStateException("MCCodeCampLib is not initialized");
@@ -82,6 +91,14 @@ public class MCCodeCampLib {
             return;
         }
         MCCodeCampLib.plugin = plugin;
+        // Saved markers can create editor displays during chunk scanning.
+        PluginHolder.setPlugin((JavaPlugin) plugin);
+        InstanceData.setPlugin(plugin);
+        HotbarMenu.onPluginLoad(plugin);
+        for (World world : Bukkit.getWorlds()) DisplayPersistence.removeAllIterations(world);
+        try { animatedObjectManager = new AnimatedObjectManager(plugin); }
+        catch (java.io.IOException e) { throw new IllegalStateException("Cannot open animated schematic store", e); }
+        animatedObjectManager.recoverLoaded();
         ItemCooldown.resetSession();
         projectileManager = new ProjectileManager(plugin);
         MCCodeCampLib.blockMarkerRegistry = new BlockMarkerRegistry(plugin);
@@ -102,16 +119,10 @@ public class MCCodeCampLib {
             throw new IllegalStateException("Could not register the world-marker editor");
         }
         registerEventListeners(plugin);
-        PluginHolder.setPlugin((JavaPlugin) plugin);
-        InstanceData.setPlugin(plugin);
-        HotbarMenu.onPluginLoad(plugin);
         MCCodeCampLib.courseManager = new CourseManager(plugin);
 
 
-        //remove all old displays
-        for (World w : Bukkit.getWorlds()) {
-            DisplayPersistence.removeAllIterations(w);
-        }
+        // Stale displays were removed before marker reconstruction above.
 
         globalTickLoop = new BukkitRunnable() {
             @Override
@@ -119,6 +130,7 @@ public class MCCodeCampLib {
                 Cooldown.tickAll();
                 ItemCooldown.tick();
                 projectileManager.tick();
+                animatedObjectManager.tick();
                 courseManager.onTick();
             }
         };
@@ -129,6 +141,12 @@ public class MCCodeCampLib {
     }
 
     private static void registerWorldMarkerTypes() {
+        blockMarkerRegistry.registerObjectType("animated_blocks", new StyledRegistryObjectType(
+                () -> new AnimatedBlockObject(false), "animated_blocks", Map.of(
+                "displayname", "Animated Blocks", "description", "Schematic-backed keyframe animation", "displayItem", "CLOCK")));
+        blockMarkerRegistry.registerObjectType("proximity_blocks", new StyledRegistryObjectType(
+                () -> new AnimatedBlockObject(true), "proximity_blocks", Map.of(
+                "displayname", "Proximity Blocks", "description", "Blocks assemble from storage as players approach", "displayItem", "ENDER_CHEST")));
         blockMarkerRegistry.registerObjectType("projectile_target", new StyledRegistryObjectType(ProjectileTarget::new, "projectile_target", Map.of(
                 "displayname", "Projectile Target",
                 "description", "A block activated by custom projectiles (optionally vanilla projectiles)",
@@ -144,7 +162,7 @@ public class MCCodeCampLib {
                 Map.entry("description", "Creates a door that slides open"),
                 Map.entry("displayItem", Material.OAK_DOOR.toString())
         ));
-        StyledRegistryObjectType pivotingDoor = new StyledRegistryObjectType(SlidingDoor::new, "pivoting_door", Map.ofEntries(
+        StyledRegistryObjectType pivotingDoor = new StyledRegistryObjectType(PivotingDoor::new, "pivoting_door", Map.ofEntries(
                 Map.entry("displayname", "Pivoting Door"),
                 Map.entry("description", "Creates a door that works like you would expect a real life door to open"),
                 Map.entry("displayItem", Material.DARK_OAK_DOOR.toString())
@@ -175,6 +193,10 @@ public class MCCodeCampLib {
             // Loaded targets/buttons own listeners, cooldowns and editor displays.
             for (var object : blockMarkerRegistry.getRegisteredObjects()) object.destroy();
         }
+        if (animatedObjectManager != null) {
+            animatedObjectManager.close();
+            animatedObjectManager = null;
+        }
         if (itemsManager != null) {
             itemsManager.close();
             itemsManager = null;
@@ -199,6 +221,7 @@ public class MCCodeCampLib {
         Bukkit.getPluginManager().registerEvents(new RegionActivationHandler(), plugin);
         Bukkit.getPluginManager().registerEvents(blockMarkerRegistry, plugin);
         Bukkit.getPluginManager().registerEvents(projectileManager, plugin);
+        Bukkit.getPluginManager().registerEvents(animatedObjectManager, plugin);
         Bukkit.getPluginManager().registerEvents(new me.simoncrafter.CraftersChatDialogs.Listeners(), plugin);
     }
 

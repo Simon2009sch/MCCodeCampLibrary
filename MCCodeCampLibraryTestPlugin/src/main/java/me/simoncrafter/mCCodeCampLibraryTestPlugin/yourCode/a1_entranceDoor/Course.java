@@ -4,7 +4,7 @@ import me.simoncrafter.mCCodeCampLibraryTestPlugin.courseInternal.a1_entranceDoo
 
 public class Course extends EntranceDoor {
 
-    protected void onButtonPress() throws InterruptedException {
+    protected void onEnterArea() throws InterruptedException {
         open();
         pause(5000);
         close();

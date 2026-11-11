@@ -19,7 +19,7 @@ public abstract class EntranceDoor implements IStudentTimingTrainingWheel {
         segment.sClose();
     }
 
-    protected abstract void onButtonPress() throws InterruptedException;
+    protected abstract void onEnterArea() throws InterruptedException;
 
 
 }

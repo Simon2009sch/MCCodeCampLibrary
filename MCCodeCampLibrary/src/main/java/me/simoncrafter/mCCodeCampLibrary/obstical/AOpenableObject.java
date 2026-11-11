@@ -1,5 +1,6 @@
 package me.simoncrafter.mCCodeCampLibrary.obstical;
 
+import me.simoncrafter.mCCodeCampLibrary.input.editor.DoorEditor;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.IEditable;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.display.EditableDisplay;
 import me.simoncrafter.mCCodeCampLibrary.internal.editor.events.PlayerClickEditableObjectEvent;
@@ -422,7 +423,13 @@ public abstract class AOpenableObject implements IOpenable, IBlockRegestryObject
 
     @Override
     public void openEditor(Player player) {
-        IEditable.super.openEditor(player);
+        var manager = me.simoncrafter.mCCodeCampLibrary.utility.MCCodeCampLib.getEditorManager();
+        String editorId = "mccodecamp:door:" + getUUID();
+        if (manager.getEditor(editorId) == null) {
+            manager.registerEditor(editorId,
+                    new DoorEditor(getPlugin(), this), this);
+        }
+        manager.put(player, editorId);
     }
 
     @Override

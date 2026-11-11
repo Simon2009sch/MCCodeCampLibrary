@@ -1,8 +1,7 @@
 package me.simoncrafter.mCCodeCampLibrary.obstical.Door;
 
 import me.simoncrafter.mCCodeCampLibrary.obstical.AAnimatedOpenableObject;
-import net.kyori.adventure.text.Component;
-import org.bukkit.Bukkit;
+
 import org.joml.Quaternionf;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
@@ -17,15 +16,15 @@ public class PivotingDoor extends AAnimatedOpenableObject {
         ConfigurationNode config = getConfig();
 
         openAngle = config.node("openAngle").getFloat(90);
-        Bukkit.broadcast(Component.text(openAngle));
+
 
         openAnimationFunction = (obj, duration) -> {
             obj.LRotateAbsolute(rotationFromYaw(this.openAngle), duration);
-            Bukkit.broadcast(Component.text("Pivoting open"));
+
         };
         closeAnimationFunction = (obj, duration) -> {
             obj.LRotateAbsolute(new Quaternionf(0, 0, 0, 1), duration);
-            Bukkit.broadcast(Component.text("Pivoting closed"));
+
         };
     }
 

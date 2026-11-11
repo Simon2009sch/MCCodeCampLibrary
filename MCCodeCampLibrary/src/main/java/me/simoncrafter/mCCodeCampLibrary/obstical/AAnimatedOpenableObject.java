@@ -55,7 +55,8 @@ public abstract class AAnimatedOpenableObject extends AOpenableObject {
         blocksToIgnore.add(Material.WATER);
         blocksToIgnore.add(Material.LAVA);
         if (doorObject == null) {
-            List<Vector> absoluteBlocks = getBlocks().stream().map(v -> getLocation().clone().add(v).toVector()).toList();
+            // Persisted door bounds remain marker-relative for compatibility with existing courses.
+            List<Vector> absoluteBlocks = getBlocks().stream().map(v->v.clone().add(getLocation().toVector())).toList();
             doorObject = StructureBuilder.assembleOutOfBlocks(getLocation().getWorld(), getLocation().clone().add(pivotPosition).toVector(), absoluteBlocks, blocksToIgnore, addCollision, true, Material.AIR, true);
         }
         if (openAnimationFunction != null) {
@@ -104,6 +105,25 @@ public abstract class AAnimatedOpenableObject extends AOpenableObject {
     }
 
 
+
+    /** Returns the marker-relative pivot as a detached vector. */
+    public Vector getPivotPosition() {
+        return pivotPosition.clone();
+    }
+
+    /** Sets and persists the marker-relative pivot; all coordinates must be finite. */
+    public void setPivotPosition(Vector position) {
+        if (position == null || !Double.isFinite(position.getX())
+                || !Double.isFinite(position.getY()) || !Double.isFinite(position.getZ()))
+            throw new IllegalArgumentException("Pivot coordinates must be finite");
+        try {
+            writeVector(getConfig().node("pivotpoint"), position);
+        } catch (SerializationException exception) {
+            throw new IllegalStateException("Cannot serialize pivot", exception);
+        }
+        pivotPosition = position.clone();
+        saveBlocks();
+    }
 
     public int getAnimationDuration() {
         return animationDuration;

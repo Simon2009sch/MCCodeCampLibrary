@@ -1,0 +1,18 @@
+# Animated schematic API (integration contract)
+
+Package `me.simoncrafter.mCCodeCampLibrary.animation.schematic`.
+
+- `new AnimatedSchematicStore(plugin)` stores committed `<uuid>.schem` and checksummed `<uuid>.snapshot` selection/world metadata under `plugin.getDataFolder()/animated`.
+- `capture(UUID, World, Collection<OpenableRegion>) -> Snapshot` is synchronous/main-thread; returns only after durable files are committed. Does not change world. Reuse `load(UUID)` across reloads/crashes. Normal capture refuses existing/incomplete originals. `recapture(UUID, World, regions)` is an explicit edit-mode-only operation: restore real blocks and stop animation first. It validates the previous snapshot, writes a new generation schematic, then atomically switches the manifest; old generations remain available.
+- `load(UUID) -> Snapshot` validates checksums, dimensions and exact selection before exposing cells. Missing/corrupt files throw `IOException`.
+- Snapshot: `objectId()`, `worldId()`, immutable `blocks()` list. Each `BlockSample`: `x()/y()/z()`, `blockDataString()`, defensive `blockData()`. Selected air is deliberately included. Unselected gaps are NEVER restored/cleared/spawned.
+- `restoreLoaded(Snapshot, World) -> boolean`: synchronous main-thread; false if ANY selected chunk is unloaded, with no edits. Wrong world/height throws before edits. Full WorldEdit block including tile NBT restored, no biome/entity paste. Success does not delete backup. Caller owns retry/lifecycle and must stop animation mutations first.
+- `Snapshot.entries()` aliases `blocks()`. Samples also expose `data()` and `position()`.
+- `snapshot.restore(world, Predicate<BlockPos>)` restores filtered selected cells including tile NBT. Preflights all filtered chunks before editing; use `(p.x() >> 4) == chunkX && (p.z() >> 4) == chunkZ` for anchor-independent per-chunk recovery.
+- `snapshot.restoreBlock(world, BlockPos)` is O(1) lookup/restore including NBT, checks world/height/chunk and rejects unselected cells.
+- `objectIds()` enumerates committed manifests without needing marker chunks; load each, group by `worldId()`, recover per source chunk. `load(UUID, World)` adds world validation without chunk loading.
+- `exists(UUID)` is true for either schematic or manifest, including incomplete/corrupt originals. If true, load must succeed before world mutations; never automatically recapture replacement blocks. Snapshots are retained after restoration/marker deletion (there is no deletion API).
+- `animation.SchematicScene` is the reusable native display adapter, and `AnimatedBlockRuntime` owns transform/solid-block transitions. `AnimatedObjectManager` owns ticks, recovery journals and chunk cleanup.
+- Verification: three Java harnesses via `tests/run_animated_schematics.py`. A real standalone Sponge codec roundtrip was attempted but blocked by `WorldEdit is not initialized yet`; actual server schematic/NBT restoration remains an integration check. See `ANIMATED_OBJECTS.md` for the user-facing configuration and verification status.
+
+Limits: 250,000 selected cells AND bounding-box cells (memory safety); invalid/nonfinite/out-of-range regions rejected. Main-thread disk I/O is deliberate ordering safety, so capture large objects outside latency-sensitive gameplay. Atomic moves are mandatory (no non-atomic fallback). File contents are fsynced; OS/filesystem directory-entry durability after sudden power loss remains platform-dependent. This is plugin/server crash recovery, not a replacement for host backups. Capture does not remove scheduled ticks or entities and restoration is not a transaction if the underlying world setter fails midway; retain backup and retry.

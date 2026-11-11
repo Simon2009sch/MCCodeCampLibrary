@@ -8,6 +8,7 @@ import me.simoncrafter.mCCodeCampLibrary.projectile.effect.ProjectileEffects;
 import me.simoncrafter.mCCodeCampLibraryTestPlugin.courseInternal.a1_entranceDoor.EntranceDoorCourseSegment;
 import me.simoncrafter.mCCodeCampLibraryTestPlugin.courseInternal.a2_bigDoor.BigDoorCourseSegment;
 import me.simoncrafter.mCCodeCampLibraryTestPlugin.courseInternal.a3_wand.WandCourseSegment;
+import me.simoncrafter.mCCodeCampLibraryTestPlugin.courseInternal.a4_flightFeather.FlightFeatherCourseSegment;
 import net.kyori.adventure.text.Component;import org.bukkit.Bukkit;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -16,6 +17,7 @@ public final class MCCodeCampLibraryTestPlugin extends JavaPlugin {
 
     private ProjectileTestSupport projectileTests;
     private ProjectileEffects projectileEffects;
+    private FlightFeatherCourseSegment flightFeather;
 
     @Override
     public void onEnable() {
@@ -28,12 +30,18 @@ public final class MCCodeCampLibraryTestPlugin extends JavaPlugin {
         MCCodeCampLib.getCourseManager().registerSegment(new EntranceDoorCourseSegment(this));
         MCCodeCampLib.getCourseManager().registerSegment(new BigDoorCourseSegment(this));
         MCCodeCampLib.getCourseManager().registerSegment(new WandCourseSegment(this));
+        flightFeather = new FlightFeatherCourseSegment(this);
+        MCCodeCampLib.getCourseManager().registerSegment(flightFeather);
 
 
     }
 
     @Override
     public void onDisable() {
+        if (flightFeather != null) {
+            MCCodeCampLib.getCourseManager().unregisterSegment(flightFeather);
+            flightFeather = null;
+        }
         if (projectileTests != null) {
             projectileTests.close();
             projectileTests = null;

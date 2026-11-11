@@ -69,6 +69,10 @@ The library currently has a Maven Shade plugin. The test plugin targets Java 21,
 
 `onDisable()` calls `MCCodeCampLib.onDisable()`.
 
+The test plugin also registers student course segments. The flight feather follows the wand's split: `yourCode/a4_flightFeather/Course` owns item/movement behavior, and `courseInternal/a4_flightFeather/FlightFeatherCourseSegment` owns button/sneak routing and wind-display lifetime. Button ID `get_flight_feather` gives item ID `flightFeather`; no world button is placed automatically. Feather velocity is literally 1 block/second (`0.05` blocks/tick), not sustained flight. See `MCCodeCampLibraryTestPlugin/FLIGHT_FEATHER.md` for tests and units.
+
+Meteor `SurfaceImpact` now performs tick-budgeted noisy spherical removal rather than native explosion batches. Keep its backup-before-mutation gate and loaded-chunk/thread guards. The offline surface harness injects material predicates because Paper 1.21.11 material hardness is a live registry lookup, unavailable without server bootstrap. Generate `MCCodeCampLibrary/target/editor-classpath.txt` with Maven `dependency:build-classpath` before running Java harness scripts.
+
 `plugin.yml`: main class is `me.simoncrafter.mCCodeCampLibraryTestPlugin.MCCodeCampLibraryTestPlugin`, API version `1.21.11`, load `POSTWORLD`, command `coursedit`.
 
 ## Core architecture
